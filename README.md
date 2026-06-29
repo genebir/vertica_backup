@@ -20,7 +20,8 @@ except/
     ├── requirements.txt       # 핀 고정된 런타임 의존성
     ├── v_dump.yaml.example    # 접속 설정 템플릿 (커밋 대상)
     ├── v_dump.yaml            # 실제 접속 설정 (install 이 생성, git 제외)
-    ├── .gitignore             # .venv / v_dump.yaml / __pycache__ 제외
+    ├── .gitignore             # .venv / v_dump.yaml / backup / 빌드산출물 제외
+    ├── .gitattributes         # 줄바꿈 정책 (스크립트 LF 고정, 바이너리 표시)
     ├── .venv/                 # install 이 만든 가상환경 (배포 시 따라가지 않음)
     ├── __main__.py            # `python -m v_dump` 진입점
     ├── cli.py                 # argparse CLI
