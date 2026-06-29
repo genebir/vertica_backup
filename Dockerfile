@@ -51,7 +51,7 @@ RUN vsql --version
 ARG CACHEBUST=0
 WORKDIR /app
 COPY __init__.py __main__.py cli.py config.py connection.py \
-     data.py ddl.py dumper.py escape.py inspector.py \
+     data.py ddl.py dumper.py escape.py inspector.py progress.py \
      /app/v_dump/
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1

@@ -111,4 +111,11 @@ if [[ "${1:-}" == "dump" ]]; then
   fi
 fi
 
-exec "$ENGINE" run --rm "${RUNAS[@]}" "${MOUNTS[@]}" "${ENVS[@]}" "$IMAGE" "${ARGS[@]}"
+# 진행률 바가 컨테이너 안에서도 라이브로 렌더되도록, dump 이고 터미널이면 PTY(-t) 할당.
+# (restore/vsql 에는 주지 않는다 — vsql 이 pager 로 빠질 수 있어서.)
+TTY=()
+[[ "${1:-}" == "dump" && -t 1 ]] && TTY=(-t)
+# 사용자가 V_DUMP_PROGRESS 를 지정했으면 컨테이너로 전달(강제 on/off).
+[[ -n "${V_DUMP_PROGRESS:-}" ]] && ENVS+=(-e "V_DUMP_PROGRESS=$V_DUMP_PROGRESS")
+
+exec "$ENGINE" run --rm "${TTY[@]}" "${RUNAS[@]}" "${MOUNTS[@]}" "${ENVS[@]}" "$IMAGE" "${ARGS[@]}"

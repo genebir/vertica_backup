@@ -30,9 +30,10 @@ def _iter_rows(conn, schema: str, table: str, columns: List[str]) -> Iterable[tu
                 yield r
 
 
-def dump_table_data(conn, schema: str, table: str, out: IO) -> tuple:
+def dump_table_data(conn, schema: str, table: str, out: IO, on_progress=None) -> tuple:
     """
     한 테이블의 데이터를 out 에 순수 데이터(헤더/종결자 없음)로 기록.
+    on_progress(written:int) 가 주어지면 배치(_FETCH_SIZE)마다 누적 행수로 호출.
     return: (적재 row 수, 컬럼 리스트)
     """
     columns = get_columns(conn, schema, table)
@@ -43,7 +44,11 @@ def dump_table_data(conn, schema: str, table: str, out: IO) -> tuple:
     for row in _iter_rows(conn, schema, table, columns):
         out.write(format_copy_row(row))
         count += 1
+        if on_progress is not None and (count % _FETCH_SIZE) == 0:
+            on_progress(count)
 
+    if on_progress is not None:
+        on_progress(count)
     return count, columns
 
 

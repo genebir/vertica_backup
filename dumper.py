@@ -21,11 +21,13 @@ from v_dump.data import build_copy_statement, dump_table_data
 from v_dump.ddl import export_objects_ddl, make_idempotent
 from v_dump.inspector import (
     TableRef,
+    count_rows,
     list_procedures,
     list_tables_in_schema,
     schema_exists,
     table_exists,
 )
+from v_dump.progress import Progress, progress_enabled
 
 
 @dataclass
@@ -94,15 +96,28 @@ class VerticaDumper:
         copy_statements: List[str] = []
 
         if not opts.schema_only:
-            for t in targets:
+            n_targets = len(targets)
+            prog_on = progress_enabled()
+            for i, t in enumerate(targets, 1):
                 dat_name = f"{t.schema}.{t.name}.dat"
                 dat_path = os.path.join(outdir, dat_name)
+                # 진행률 총계 (바를 켤 때만 COUNT 비용 지불; 실패하면 불확정 모드)
+                total = 0
+                if prog_on:
+                    try:
+                        total = count_rows(conn, t.schema, t.name)
+                    except Exception:
+                        total = 0
+                prog = Progress(f"[{i}/{n_targets}] {t.schema}.{t.name}", total, prog_on)
                 try:
                     with open(dat_path, 'w', encoding='utf-8', newline='') as fh:
-                        n, cols = dump_table_data(conn, t.schema, t.name, fh)
+                        n, cols = dump_table_data(conn, t.schema, t.name, fh,
+                                                  on_progress=prog.update)
+                    prog.done(n)
                 except Exception as e:
                     # 단일 테이블 실패가 전체 덤프를 막지 않도록.
                     # 부분 생성된 .dat 은 제거하고 manifest 에 사유 기록.
+                    prog.abort()
                     try:
                         os.remove(dat_path)
                     except OSError:

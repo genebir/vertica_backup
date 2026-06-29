@@ -85,6 +85,17 @@ def schema_exists(conn, schema: str) -> bool:
         return cur.fetchone() is not None
 
 
+def count_rows(conn, schema: str, table: str) -> int:
+    """진행률 총계용 행 수. (식별자는 파라미터 바인딩이 안 되므로 직접 인용)"""
+    def q(name: str) -> str:
+        return '"' + name.replace('"', '""') + '"'
+    sql = f'SELECT COUNT(*) FROM {q(schema)}.{q(table)}'
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        row = cur.fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+
+
 def list_procedures(conn, schema: str) -> List[tuple]:
     """스키마의 (저장)프로시저 목록. (이름, 인자문자열) 튜플 리스트.
     인자문자열은 EXPORT_OBJECTS 시그니처로 그대로 쓰인다 ('NAME type, NAME type, ...').
