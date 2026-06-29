@@ -1,0 +1,26 @@
+Copyright (c) 2026 염기승 (Gibseung Yeom). All rights reserved.
+
+이 소프트웨어("v_dump")의 저작자이자 유일한 저작권자는
+염기승 (Gibseung Yeom) <duarltmd1@naver.com> 이다.
+The author and sole copyright holder of this software ("v_dump") is
+염기승 (Gibseung Yeom) <duarltmd1@naver.com>.
+
+저작자의 사전 서면 동의 없이 본 소프트웨어의 전부 또는 일부를 복제, 수정,
+배포, 2차적 저작물 작성, 상업적으로 이용하는 것을 금지한다.
+No part of this software may be copied, modified, distributed, sublicensed,
+or used to create derivative works without the prior written permission of
+the author.
+
+본 저작권 및 작성자 표시(이 파일과 각 소스 파일 상단의 표기)는 제거하거나
+변경할 수 없다.
+This copyright and authorship notice (this file and the headers atop each
+source file) may not be removed or altered.
+
+저작자 진위는 Git 커밋 이력과 작성자가 서명한 태그(SSH/GPG 서명)로
+암호학적으로 검증할 수 있다. 누구든 파일을 변조하면 서명 검증이 실패하므로
+변조 사실이 즉시 드러난다.
+Authorship is cryptographically verifiable through the Git commit history
+and the author's signed tag (SSH/GPG signature). Any tampering with the
+files breaks signature verification and is therefore self-evident.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.

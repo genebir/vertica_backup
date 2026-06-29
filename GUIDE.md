@@ -525,3 +525,7 @@ tar czf MY_SCHEMA2_$(date +%Y%m%d).tar.gz -C backup MY_SCHEMA2
 VERTICA_HOST=dev VERTICA_DATABASE=MYDB_DEV \
   ./v_dump-docker.sh restore MY_SCHEMA/TB_A --with-ddl
 ```
+
+---
+
+© 2026 염기승 (Gibseung Yeom) <duarltmd1@naver.com> — author & copyright holder of **v_dump**. All rights reserved.

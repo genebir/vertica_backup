@@ -670,3 +670,7 @@ docker run --rm -v "$PWD/backup:/backup" \
 - vsql（vertica-client）のバージョン交換
 
 このときだけ 11-1 を再び実行して新しい `v_dump-image.tar` を持ち込む。
+
+---
+
+© 2026 염기승 (Gibseung Yeom) <duarltmd1@naver.com> — author & copyright holder of **v_dump**. All rights reserved.

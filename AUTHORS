@@ -1,0 +1,8 @@
+v_dump — Vertica 데이터 백업/복원 도구
+
+저작자 / Author · Maintainer · Copyright holder:
+  염기승 (Gibseung Yeom)  <duarltmd1@naver.com>
+
+이 프로젝트의 모든 코드는 염기승이 작성하였다.
+All code in this project was authored by 염기승 (Gibseung Yeom).
+저작자 진위는 Git 커밋 이력과 서명된 태그로 검증할 수 있다.

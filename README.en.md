@@ -669,3 +669,7 @@ needed **when the image's contents change**:
 - vsql (vertica-client) version replacement
 
 Only then re-run 11-1 to import a new `v_dump-image.tar`.
+
+---
+
+© 2026 염기승 (Gibseung Yeom) <duarltmd1@naver.com> — author & copyright holder of **v_dump**. All rights reserved.
