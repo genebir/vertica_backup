@@ -10,7 +10,7 @@
 #        b) yaml:      v_dump.yaml (실행위치/backup 옆/스크립트 부모 순으로 자동 탐색)
 #
 # 사용 (백업 디렉토리·-o 자동 — 신경 쓸 필요 없음):
-#   ./v_dump-docker.sh dump --schema BDA_DM_DB           # → backup/BDA_DM_DB/all/
+#   ./v_dump-docker.sh dump --schema MY_SCHEMA           # → backup/MY_SCHEMA/all/
 #   ./v_dump-docker.sh dump --schema DS -t TB_A,TB_B     # → backup/DS/TB_A , TB_B/
 #   ./v_dump-docker.sh restore DS/TB_A                   # 말단 폴더 (backup 기준 상대경로)
 #   ./v_dump-docker.sh restore DS/TB_A --with-ddl

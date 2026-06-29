@@ -11,7 +11,7 @@ import re
 def _export(conn, scope: str) -> str:
     """
     EXPORT_OBJECTS('', '<scope>') 를 호출해 DDL 문자열을 받는다.
-    scope 예: 'BDA_DM_DB.TB_BCOLOG701' (테이블) / 'BDA_DM_DB' (스키마 전체).
+    scope 예: 'MY_SCHEMA.TB_SAMPLE' (테이블) / 'MY_SCHEMA' (스키마 전체).
     """
     sql = "SELECT EXPORT_OBJECTS('', %s, FALSE)"
     with conn.cursor() as cur:

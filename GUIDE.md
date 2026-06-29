@@ -182,18 +182,18 @@ VERTICA_HOST=10.0.0.9 VERTICA_USER=dbadmin VERTICA_PASSWORD=*** VERTICA_DATABASE
 
 ```
 backup/                              # v_dump-docker.sh 옆 (docker/backup)
-└── BDA_DM_DB/
+└── MY_SCHEMA/
     ├── all/                         # 스키마 전체 덤프(-t 없이)
     │   ├── MANIFEST.txt             # 메타정보(행 수, 실패/프로시저 목록)
     │   ├── schema.ddl.sql           # 구조 DDL (멱등 형태)
     │   ├── load.sql                 # 재적재 COPY 문
-    │   └── BDA_DM_DB.<table>.dat    # 테이블별 데이터
-    ├── TB_BCOLOG701/                # -t 로 지정한 테이블(테이블마다 한 폴더)
+    │   └── MY_SCHEMA.<table>.dat    # 테이블별 데이터
+    ├── TB_SAMPLE/                # -t 로 지정한 테이블(테이블마다 한 폴더)
     │   ├── MANIFEST.txt
     │   ├── schema.ddl.sql           # 이 테이블 + 매칭 프로시저 DDL
     │   ├── load.sql
-    │   └── BDA_DM_DB.TB_BCOLOG701.dat
-    └── TB_BCOLOG702/
+    │   └── MY_SCHEMA.TB_SAMPLE.dat
+    └── TB_SAMPLE2/
         └── ...
 ```
 
@@ -202,27 +202,27 @@ backup/                              # v_dump-docker.sh 옆 (docker/backup)
 ### 5-2. 스키마 전체 백업
 
 ```bash
-./v_dump-docker.sh dump --schema BDA_DM_DB
-#   → backup/BDA_DM_DB/all/  (스키마의 모든 일반 테이블 + 구조 + 프로시저)
+./v_dump-docker.sh dump --schema MY_SCHEMA
+#   → backup/MY_SCHEMA/all/  (스키마의 모든 일반 테이블 + 구조 + 프로시저)
 ```
 
 실행하면 이렇게 출력된다:
 ```
 [run] backup dir: /현재경로/backup  →  컨테이너 /backup
-[v_dump] BDA_DM_DB → tables=69 rows=12345678 → /backup/BDA_DM_DB/all/
+[v_dump] MY_SCHEMA → tables=69 rows=12345678 → /backup/MY_SCHEMA/all/
 ```
 
 ### 5-3. 특정 테이블 백업 (1개 / 여러 개)
 
 ```bash
 # 1개
-./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_BCOLOG701
-#   → backup/BDA_DM_DB/TB_BCOLOG701/
+./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_SAMPLE
+#   → backup/MY_SCHEMA/TB_SAMPLE/
 
 # 여러 개 — 반복(-t A -t B) 또는 콤마(-t A,B,C), 혼용 가능
-./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_BCOLOG701 -t TB_BCOLOG702
-./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_BCOLOG701,TB_BCOLOG702
-#   → 테이블마다 한 폴더씩: backup/BDA_DM_DB/TB_BCOLOG701/ , .../TB_BCOLOG702/
+./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_SAMPLE -t TB_SAMPLE2
+./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_SAMPLE,TB_SAMPLE2
+#   → 테이블마다 한 폴더씩: backup/MY_SCHEMA/TB_SAMPLE/ , .../TB_SAMPLE2/
 ```
 
 > 여러 테이블을 줘도 커넥션은 **1개만** 열어 순차 처리한다. 한 테이블이 실패해도 나머지는 계속된다.
@@ -233,10 +233,10 @@ backup/                              # v_dump-docker.sh 옆 (docker/backup)
 DDL 을 `schema.ddl.sql` 끝에 함께 담는다(기본 ON). 명명 규칙을 가정하지 않는 단순 부분 일치다.
 
 ```bash
-./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_BCOLOG701
+./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_SAMPLE
 #   schema.ddl.sql 끝에:
 #     -- ===== stored procedures =====
-#     CREATE OR REPLACE PROCEDURE BDA_DM_DB.PID_SM_TB_BCOLOG701_1(...) ...
+#     CREATE OR REPLACE PROCEDURE MY_SCHEMA.PROC_TB_SAMPLE_1(...) ...
 ```
 
 - 끄려면 `--no-procedures`.
@@ -246,15 +246,15 @@ DDL 을 `schema.ddl.sql` 끝에 함께 담는다(기본 ON). 명명 규칙을 �
 ### 5-5. 모드 — 구조만 / 데이터만
 
 ```bash
-./v_dump-docker.sh dump --schema BDA_DM_DB --schema-only   # DDL 만 (.dat X)
-./v_dump-docker.sh dump --schema BDA_DM_DB --data-only     # 데이터만 (DDL/load.sql X)
+./v_dump-docker.sh dump --schema MY_SCHEMA --schema-only   # DDL 만 (.dat X)
+./v_dump-docker.sh dump --schema MY_SCHEMA --data-only     # 데이터만 (DDL/load.sql X)
 ```
 
 ### 5-6. 결과 확인
 
 ```bash
-ls -R backup/BDA_DM_DB/TB_BCOLOG701/
-cat  backup/BDA_DM_DB/TB_BCOLOG701/MANIFEST.txt
+ls -R backup/MY_SCHEMA/TB_SAMPLE/
+cat  backup/MY_SCHEMA/TB_SAMPLE/MANIFEST.txt
 ```
 
 `MANIFEST.txt` 예:
@@ -262,13 +262,13 @@ cat  backup/BDA_DM_DB/TB_BCOLOG701/MANIFEST.txt
 v_dump manifest
   host        : 10.0.0.5:5433
   database    : MYDB
-  scope       : BDA_DM_DB.{TB_BCOLOG701}
+  scope       : MY_SCHEMA.{TB_SAMPLE}
   tables      : 1
   rows total  : 7751
   procedures  : 1 included
   ...
 procedures:
-  PID_SM_TB_BCOLOG701_1	included
+  PROC_TB_SAMPLE_1	included
 ```
 
 > 산출 파일은 **호스트 사용자 소유**로 떨어진다(컨테이너 root 아님). 호스트에서 그냥 지우고 옮길 수 있다.
@@ -288,10 +288,10 @@ procedures:
 
 ```bash
 # 스키마 전체 백업본 복원
-./v_dump-docker.sh restore BDA_DM_DB/all
+./v_dump-docker.sh restore MY_SCHEMA/all
 
 # 단일 테이블 폴더 복원
-./v_dump-docker.sh restore BDA_DM_DB/TB_BCOLOG701
+./v_dump-docker.sh restore MY_SCHEMA/TB_SAMPLE
 ```
 
 ### 6-3. 선택 복원 (폴더 안에서 일부 테이블만)
@@ -300,7 +300,7 @@ procedures:
 폴더에 없는 테이블을 주면 **실행 전에 실패**시켜 사고를 막는다.
 
 ```bash
-./v_dump-docker.sh restore BDA_DM_DB/all -t TB_BCOLOG701,TB_BCOLOG702
+./v_dump-docker.sh restore MY_SCHEMA/all -t TB_SAMPLE,TB_SAMPLE2
 ```
 
 ### 6-4. 구조부터 생성 후 적재 — `--with-ddl`
@@ -308,7 +308,7 @@ procedures:
 빈 대상(테이블이 아직 없는 DB)에 복원할 때. `schema.ddl.sql`(테이블+프로시저)을 먼저 실행하고 데이터를 적재한다.
 
 ```bash
-./v_dump-docker.sh restore BDA_DM_DB/TB_BCOLOG701 --with-ddl
+./v_dump-docker.sh restore MY_SCHEMA/TB_SAMPLE --with-ddl
 ```
 
 - DDL 이 **멱등**(아래 6-5)이라 이미 있는 객체가 있어도 그냥 넘어간다.
@@ -331,8 +331,8 @@ procedures:
 복원 대상이 백업 원본과 다른 DB 면, 그 실행에만 접속 정보를 덮어쓴다.
 
 ```bash
-VERTICA_HOST=10.0.0.9 VERTICA_USER=dbadmin VERTICA_PASSWORD=*** VERTICA_DATABASE=KNR_BDA_DEV \
-  ./v_dump-docker.sh restore BDA_DM_DB/TB_BCOLOG701 --with-ddl
+VERTICA_HOST=10.0.0.9 VERTICA_USER=dbadmin VERTICA_PASSWORD=*** VERTICA_DATABASE=MYDB_DEV \
+  ./v_dump-docker.sh restore MY_SCHEMA/TB_SAMPLE --with-ddl
 ```
 
 ---
@@ -343,37 +343,37 @@ VERTICA_HOST=10.0.0.9 VERTICA_USER=dbadmin VERTICA_PASSWORD=*** VERTICA_DATABASE
 
 ```bash
 # 1) 운영에서 백업 (yaml = 운영 접속)
-./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_BCOLOG701,TB_BCOLOG702
+./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_SAMPLE,TB_SAMPLE2
 
 # 2) 개발 DB 로 구조+데이터 복원 (env 로 개발 접속 덮어쓰기)
-for T in TB_BCOLOG701 TB_BCOLOG702; do
-  VERTICA_HOST=dev-host VERTICA_DATABASE=KNR_BDA_DEV \
-    ./v_dump-docker.sh restore BDA_DM_DB/$T --with-ddl
+for T in TB_SAMPLE TB_SAMPLE2; do
+  VERTICA_HOST=dev-host VERTICA_DATABASE=MYDB_DEV \
+    ./v_dump-docker.sh restore MY_SCHEMA/$T --with-ddl
 done
 ```
 
 ### 7-2. 스키마 통째 백업 보관
 
 ```bash
-./v_dump-docker.sh dump --schema BDA_DS_DB        # → backup/BDA_DS_DB/all/
-tar czf BDA_DS_DB_$(date +%Y%m%d).tar.gz -C backup BDA_DS_DB
+./v_dump-docker.sh dump --schema MY_SCHEMA2        # → backup/MY_SCHEMA2/all/
+tar czf MY_SCHEMA2_$(date +%Y%m%d).tar.gz -C backup MY_SCHEMA2
 ```
 
 ### 7-3. 프로시저까지 포함해 백업/복원
 
 ```bash
 # 백업: -t 백업이면 프로시저 자동 포함(기본)
-./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_BCOLOG701
+./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_SAMPLE
 
 # 복원: --with-ddl 이 테이블+프로시저 DDL 을 함께 생성 후 데이터 적재
-./v_dump-docker.sh restore BDA_DM_DB/TB_BCOLOG701 --with-ddl
+./v_dump-docker.sh restore MY_SCHEMA/TB_SAMPLE --with-ddl
 ```
 
 ### 7-4. 임의 점검 쿼리
 
 ```bash
-./v_dump-docker.sh vsql -c "SELECT COUNT(*) FROM BDA_DM_DB.TB_BCOLOG701;"
-./v_dump-docker.sh vsql -f /backup/BDA_DM_DB/TB_BCOLOG701/schema.ddl.sql   # DDL만 수동 실행
+./v_dump-docker.sh vsql -c "SELECT COUNT(*) FROM MY_SCHEMA.TB_SAMPLE;"
+./v_dump-docker.sh vsql -f /backup/MY_SCHEMA/TB_SAMPLE/schema.ddl.sql   # DDL만 수동 실행
 ```
 
 ---
@@ -497,11 +497,11 @@ tar czf BDA_DS_DB_$(date +%Y%m%d).tar.gz -C backup BDA_DS_DB
 □ ./v_dump-docker.sh vsql -c "SELECT version();"   (연결 확인)
 
 [백업]
-□ ./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_BCOLOG701
-□ ls backup/BDA_DM_DB/TB_BCOLOG701/
+□ ./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_SAMPLE
+□ ls backup/MY_SCHEMA/TB_SAMPLE/
 
 [복원]
-□ ./v_dump-docker.sh restore BDA_DM_DB/TB_BCOLOG701 --with-ddl
+□ ./v_dump-docker.sh restore MY_SCHEMA/TB_SAMPLE --with-ddl
 ```
 
 ## 부록 B. 자주 쓰는 한 줄
@@ -511,15 +511,15 @@ tar czf BDA_DS_DB_$(date +%Y%m%d).tar.gz -C backup BDA_DS_DB
 ./v_dump-docker.sh vsql -c "SELECT version();"
 
 # 스키마 전체 백업
-./v_dump-docker.sh dump --schema BDA_DM_DB
+./v_dump-docker.sh dump --schema MY_SCHEMA
 
 # 테이블 여러 개 백업 (+프로시저)
-./v_dump-docker.sh dump --schema BDA_DM_DB -t TB_A,TB_B,TB_C
+./v_dump-docker.sh dump --schema MY_SCHEMA -t TB_A,TB_B,TB_C
 
 # 단일 테이블 복원 (구조부터)
-./v_dump-docker.sh restore BDA_DM_DB/TB_A --with-ddl
+./v_dump-docker.sh restore MY_SCHEMA/TB_A --with-ddl
 
 # 다른 DB 로 복원
-VERTICA_HOST=dev VERTICA_DATABASE=KNR_BDA_DEV \
-  ./v_dump-docker.sh restore BDA_DM_DB/TB_A --with-ddl
+VERTICA_HOST=dev VERTICA_DATABASE=MYDB_DEV \
+  ./v_dump-docker.sh restore MY_SCHEMA/TB_A --with-ddl
 ```

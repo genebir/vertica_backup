@@ -69,7 +69,7 @@ cd /opt/v_dump
 vi v_dump.yaml
 
 # 4) 실행
-./run.sh --schema BDA_DM_DB -o ./BDA_DM_DB_backup
+./run.sh --schema MY_SCHEMA -o ./MY_SCHEMA_backup
 ```
 
 `install.sh` 가 하는 일:
@@ -132,7 +132,7 @@ vertica:
 찾아 DDL 을 함께 내린다(`schema.ddl.sql` 에 추가). 명명 규칙(접두/접미)을 가정하지 않는
 단순 부분 일치라 별도 설정이 필요 없다.
 
-- 예: 테이블 `TB_BCOLOG701` → 프로시저 `PID_SM_TB_BCOLOG701_1`(이름에 테이블명 포함) 자동 매칭.
+- 예: 테이블 `TB_SAMPLE` → 프로시저 `PROC_TB_SAMPLE_1`(이름에 테이블명 포함) 자동 매칭.
 - 프로시저 목록은 `v_catalog.user_procedures` 에서 읽고, 인자 있는 프로시저는 시그니처까지
   포함해 `EXPORT_OBJECTS` 로 추출한다.
 - 매칭이 없거나 추출 실패한 건 건너뛰고 `MANIFEST.txt` 에 사유를 남긴다(덤프는 계속).
@@ -145,7 +145,7 @@ vertica:
 ### 3-1. 가장 빠른 한 줄
 
 ```bash
-/home/duarl/KRWay/except/v_dump.sh --schema BDA_DM_DB -o ./BDA_DM_DB_backup
+/home/duarl/KRWay/except/v_dump.sh --schema MY_SCHEMA -o ./MY_SCHEMA_backup
 ```
 
 `v_dump.sh` 는 venv 의 python + PYTHONPATH 를 자동으로 잡아 준다. **어떤 디렉토리에서 호출해도** 동작.
@@ -155,7 +155,7 @@ vertica:
 ```bash
 echo 'alias v_dump=/home/duarl/KRWay/except/v_dump.sh' >> ~/.bashrc
 source ~/.bashrc
-v_dump --schema BDA_DM_DB -o ./BDA_DM_DB_backup
+v_dump --schema MY_SCHEMA -o ./MY_SCHEMA_backup
 ```
 
 ### 3-2. 자주 쓰는 패턴
@@ -163,32 +163,32 @@ v_dump --schema BDA_DM_DB -o ./BDA_DM_DB_backup
 ```bash
 # (모든 예시에서 -o 는 베이스 경로. 그 아래 <schema>/<table|all> 로 생성된다.)
 
-# 스키마 전체 (74개 테이블 한 번에)         → ./backup/BDA_DM_DB/all/
-v_dump --schema BDA_DM_DB -o ./backup
+# 스키마 전체 (74개 테이블 한 번에)         → ./backup/MY_SCHEMA/all/
+v_dump --schema MY_SCHEMA -o ./backup
 
-# 특정 테이블만                             → ./backup/BDA_DM_DB/TB_BCOLOG701/
-v_dump --schema BDA_DM_DB --table TB_BCOLOG701 -o ./backup
+# 특정 테이블만                             → ./backup/MY_SCHEMA/TB_SAMPLE/
+v_dump --schema MY_SCHEMA --table TB_SAMPLE -o ./backup
 
 # 테이블 여러 개 (반복/콤마/혼용) — 테이블마다 한 폴더
-v_dump --schema BDA_DM_DB -t TB_BCOLOG701 -t TB_BCOLOG702 -o ./backup
-v_dump --schema BDA_DM_DB -t TB_A,TB_B,TB_C -o ./backup
+v_dump --schema MY_SCHEMA -t TB_SAMPLE -t TB_SAMPLE2 -o ./backup
+v_dump --schema MY_SCHEMA -t TB_A,TB_B,TB_C -o ./backup
 
 # 테이블 단위 백업 시, 이름에 그 테이블명이 포함된 프로시저 DDL 도 자동 포함 (기본 ON)
-v_dump --schema BDA_DM_DB -t TB_BCOLOG701 -o ./backup            # +프로시저 DDL
-v_dump --schema BDA_DM_DB -t TB_BCOLOG701 --no-procedures -o ./backup  # 프로시저 제외
+v_dump --schema MY_SCHEMA -t TB_SAMPLE -o ./backup            # +프로시저 DDL
+v_dump --schema MY_SCHEMA -t TB_SAMPLE --no-procedures -o ./backup  # 프로시저 제외
 
 # DDL 만 (.dat 안 만듦)
-v_dump --schema BDA_DM_DB --schema-only -o ./backup
+v_dump --schema MY_SCHEMA --schema-only -o ./backup
 
 # 데이터만 (DDL/load.sql 안 만듦)
-v_dump --schema BDA_DM_DB --data-only -o ./backup
+v_dump --schema MY_SCHEMA --data-only -o ./backup
 
 # 다른 환경에 접속
 v_dump --host 10.0.0.5 --user readonly --password secret \
        --database VMart --schema PUBLIC -o ./backup
 
 # 다른 설정 파일 사용
-v_dump --config /etc/v_dump/prod.yaml --schema BDA_DM_DB -o ./backup
+v_dump --config /etc/v_dump/prod.yaml --schema MY_SCHEMA -o ./backup
 
 # 도움말
 v_dump --help
@@ -288,7 +288,7 @@ Vertica 의 `EXPORT_OBJECTS()` 가 만들어주는 DDL 을 **재실행 안전(�
 \set ON_ERROR_STOP on
 BEGIN;
 
-COPY "BDA_DM_DB"."TB_BCOLOG701" (col1, col2, ...) FROM LOCAL 'BDA_DM_DB.TB_BCOLOG701.dat'
+COPY "MY_SCHEMA"."TB_SAMPLE" (col1, col2, ...) FROM LOCAL 'MY_SCHEMA.TB_SAMPLE.dat'
   DELIMITER '|' NULL AS '\N' ENCLOSED BY '' ABORT ON ERROR DIRECT;
 ...
 
@@ -321,8 +321,8 @@ failed:                                  # (실패가 있을 때만)
   DS.SOME_TABLE	<오류 첫 줄>
 
 procedures:                              # (프로시저 추출을 시도했을 때만)
-  PID_SM_TB_BCOLOG701_1	included
-  PID_SM_TB_BCOLOG701_2	skipped (export 결과 비어있음)
+  PROC_TB_SAMPLE_1	included
+  PROC_TB_SAMPLE_2	skipped (export 결과 비어있음)
 ```
 
 ---
@@ -331,7 +331,7 @@ procedures:                              # (프로시저 추출을 시도했을 
 
 ```bash
 # 복원할 말단 폴더로 진입 (스키마 전체는 <schema>/all, 단일 테이블은 <schema>/<table>)
-cd ./backup/BDA_DM_DB/all
+cd ./backup/MY_SCHEMA/all
 vsql -h 10.0.0.5 -U dbadmin -d VMart -f schema.ddl.sql   # 테이블 생성
 vsql -h 10.0.0.5 -U dbadmin -d VMart -f load.sql         # 데이터 적재
 ```
@@ -506,11 +506,11 @@ inspector 필터 조건이 환경에 안 맞는 것이니 manifest 의 `failed:`
 ## 10. 빠른 참조 — 한 페이지 요약
 
 ```bash
-# 백업 (→ ./backup/BDA_DM_DB/all/ 에 생성)
-/home/duarl/KRWay/except/v_dump.sh --schema BDA_DM_DB -o ./backup
+# 백업 (→ ./backup/MY_SCHEMA/all/ 에 생성)
+/home/duarl/KRWay/except/v_dump.sh --schema MY_SCHEMA -o ./backup
 
 # 복원 (말단 폴더로 cd)
-cd ./backup/BDA_DM_DB/all
+cd ./backup/MY_SCHEMA/all
 vsql -h 10.0.0.5 -U dbadmin -d VMart -f schema.ddl.sql
 vsql -h 10.0.0.5 -U dbadmin -d VMart -f load.sql
 ```
@@ -581,7 +581,7 @@ chmod +x v_dump-docker.sh
 
 ```bash
 # 접속정보는 v_dump.yaml 자동 탐색 또는 env. -o 생략.
-./v_dump-docker.sh dump --schema BDA_DM_DB        # → backup/BDA_DM_DB/all/
+./v_dump-docker.sh dump --schema MY_SCHEMA        # → backup/MY_SCHEMA/all/
 
 # 테이블 여러 개 + 프로시저(DS/DM 자동) — 테이블마다 한 폴더
 ./v_dump-docker.sh dump --schema DS -t TB_A,TB_B  # → backup/DS/TB_A/ , backup/DS/TB_B/
@@ -597,7 +597,7 @@ chmod +x v_dump-docker.sh
 
 ```bash
 # 스키마 전체 복원 (말단 폴더를 가리킨다)
-./v_dump-docker.sh restore BDA_DM_DB/all
+./v_dump-docker.sh restore MY_SCHEMA/all
 
 # 단일 테이블 폴더 복원
 ./v_dump-docker.sh restore DS/TB_A
@@ -606,7 +606,7 @@ chmod +x v_dump-docker.sh
 ./v_dump-docker.sh restore DS/TB_A --with-ddl
 
 # all 폴더에서 일부 테이블만 골라 적재
-./v_dump-docker.sh restore BDA_DM_DB/all -t TB_A,TB_B
+./v_dump-docker.sh restore MY_SCHEMA/all -t TB_A,TB_B
 
 # 임의 점검: vsql 원시 실행
 ./v_dump-docker.sh vsql -c "SELECT version()"

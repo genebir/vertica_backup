@@ -4,12 +4,12 @@
 # Date            : 2026-05-20
 # Desc            : v_dump CLI. -o 는 베이스 경로이고 그 아래로
 #                   <schema>/<table> (전체는 <schema>/all) 구조가 만들어진다.
-#   python -m v_dump --schema BDA_DM_DB -o ./backup           # → ./backup/BDA_DM_DB/all/
-#   python -m v_dump --schema BDA_DM_DB -t TB_BCOLOG701 -o ./backup  # → ./backup/BDA_DM_DB/TB_BCOLOG701/
-#   python -m v_dump --schema BDA_DM_DB -t TB_A,TB_B -o ./backup     # → ./backup/BDA_DM_DB/{TB_A,TB_B}/ 각각
+#   python -m v_dump --schema MY_SCHEMA -o ./backup           # → ./backup/MY_SCHEMA/all/
+#   python -m v_dump --schema MY_SCHEMA -t TB_SAMPLE -o ./backup  # → ./backup/MY_SCHEMA/TB_SAMPLE/
+#   python -m v_dump --schema MY_SCHEMA -t TB_A,TB_B -o ./backup     # → ./backup/MY_SCHEMA/{TB_A,TB_B}/ 각각
 #   # -t 백업 시, 같은 스키마에서 이름에 테이블명이 포함된 프로시저 DDL 도 같이 추출(기본 ON)
-#   python -m v_dump --schema BDA_DM_DB -t TB_BCOLOG701 -o ./backup        # +프로시저
-#   python -m v_dump --schema BDA_DM_DB -t TB_BCOLOG701 --no-procedures -o ./backup
+#   python -m v_dump --schema MY_SCHEMA -t TB_SAMPLE -o ./backup        # +프로시저
+#   python -m v_dump --schema MY_SCHEMA -t TB_SAMPLE --no-procedures -o ./backup
 ###############################################################################
 
 import argparse
