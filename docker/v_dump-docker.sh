@@ -50,6 +50,16 @@ else
   exit 1
 fi
 
+# podman 은 레지스트리 접두 없는 짧은 이미지명(v_dump:latest)을 받으면
+# "어느 레지스트리에서 받을지" 프롬프트를 띄운다. podman load 로 들어온 로컬
+# 이미지는 보통 localhost/ 접두가 붙으므로, 짧은 이름이 로컬에 없고 localhost/ 가
+# 있으면 그쪽으로 바꿔 프롬프트를 피한다. (IMAGE 를 명시 지정하면 그대로 존중.)
+if [[ "$ENGINE" == podman && "$IMAGE" != *"/"* ]]; then
+  if ! podman image exists "$IMAGE" 2>/dev/null && podman image exists "localhost/$IMAGE" 2>/dev/null; then
+    IMAGE="localhost/$IMAGE"
+  fi
+fi
+
 # help 는 마운트 없이 바로.
 if [[ "${1:-help}" == "help" || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exec "$ENGINE" run --rm "$IMAGE" help
