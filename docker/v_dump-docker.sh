@@ -68,11 +68,17 @@ fi
 mkdir -p "$BACKUP_DIR"
 echo "[run] backup dir: $BACKUP_DIR  →  컨테이너 /backup" >&2
 
-# 컨테이너를 호출자 UID/GID 로 실행 → /backup 에 떨어지는 산출물이 host 소유가 된다
-# (안 그러면 컨테이너 root 가 만든 파일이라 host 에서 못 지움). 앱은 /backup 과 /app 만
-# 건드리므로 비루트로도 정상 동작한다.
-# USER/HOME 도 준다: uid 가 컨테이너 passwd 에 없을 때 나는 getpwuid 경고를 막는다.
-RUNAS=(--user "$(id -u):$(id -g)" -e USER=vdump -e HOME=/tmp)
+# 산출물 소유권 처리는 엔진별로 다르다:
+#  - docker(루트풀): 컨테이너 root 가 host root → 결과가 root 소유가 되므로, 호출자
+#    UID/GID 로 실행해 host 사용자 소유로 만든다. USER/HOME 은 getpwuid 경고 방지.
+#  - podman(루트리스): 컨테이너 root 가 이미 host 사용자에 매핑돼 결과가 host 소유가 된다.
+#    여기에 --user 를 주면 subuid 로 매핑돼 마운트 디렉토리에 쓰지 못한다(Permission denied).
+#    그래서 podman 에는 --user 를 주지 않는다(기본 동작이 올바름).
+if [[ "$ENGINE" == docker ]]; then
+  RUNAS=(--user "$(id -u):$(id -g)" -e USER=vdump -e HOME=/tmp)
+else
+  RUNAS=()
+fi
 
 # 마운트 구성
 MOUNTS=(-v "$BACKUP_DIR:/backup:z")
