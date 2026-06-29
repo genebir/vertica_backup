@@ -1,5 +1,7 @@
 # v_dump — Vertica 데이터 백업 도구
 
+**🇰🇷 한국어** · [🇬🇧 English](README.en.md) · [🇯🇵 日本語](README.ja.md) · [🇨🇳 中文](README.zh.md)
+
 Vertica 의 스키마/테이블을 **Vertica 가 다시 가장 빠르게 읽을 수 있는 형식**으로 파일로 떨어뜨리고,
 나중에 `vsql -f load.sql` 한 줄로 복원할 수 있게 해 주는 백업 유틸리티.
 

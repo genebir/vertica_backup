@@ -1,5 +1,7 @@
 # v_dump 사용 가이드 (Docker / 폐쇄망)
 
+**🇰🇷 한국어** · [🇬🇧 English](GUIDE.en.md) · [🇯🇵 日本語](GUIDE.ja.md) · [🇨🇳 中文](GUIDE.zh.md)
+
 Vertica 의 스키마·테이블·프로시저를 파일로 백업하고, `vsql` 로 다시 적재(복원)하는 도구
 **v_dump** 를 **Docker 컨테이너**로 운영하는 실무 가이드.
 
