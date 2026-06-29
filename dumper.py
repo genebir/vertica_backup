@@ -14,6 +14,7 @@
 ###############################################################################
 
 import os
+import shutil
 import sys
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,11 +27,14 @@ from v_dump.ddl import export_objects_ddl, make_idempotent
 from v_dump.inspector import (
     TableRef,
     count_rows,
+    estimate_rows,
+    get_columns,
     list_procedures,
     list_tables_in_schema,
     schema_exists,
     table_exists,
 )
+from v_dump.planner import plan, resolve_workers
 from v_dump.progress import Progress, progress_enabled
 
 
@@ -100,44 +104,17 @@ class VerticaDumper:
         copy_statements: List[str] = []
 
         if not opts.schema_only:
-            n_targets = len(targets)
-            prog_on = progress_enabled()
-            for i, t in enumerate(targets, 1):
-                dat_name = f"{t.schema}.{t.name}.dat"
-                dat_path = os.path.join(outdir, dat_name)
-                # 진행률 총계 (바를 켤 때만 COUNT 비용 지불; 실패하면 불확정 모드)
-                total = 0
-                if prog_on:
-                    try:
-                        total = count_rows(conn, t.schema, t.name)
-                    except Exception:
-                        total = 0
-                prog = Progress(f"[{i}/{n_targets}] {t.schema}.{t.name}", total, prog_on)
-                try:
-                    with open(dat_path, 'w', encoding='utf-8', newline='') as fh:
-                        n, cols = dump_table_data(conn, t.schema, t.name, fh,
-                                                  on_progress=prog.update)
-                    prog.done(n)
-                except Exception as e:
-                    # 단일 테이블 실패가 전체 덤프를 막지 않도록.
-                    # 부분 생성된 .dat 은 제거하고 manifest 에 사유 기록.
-                    prog.abort()
-                    try:
-                        os.remove(dat_path)
-                    except OSError:
-                        pass
-                    stats['failed'].append((f"{t.schema}.{t.name}", str(e).splitlines()[0]))
-                    print(
-                        f"[v_dump] WARN skip {t.schema}.{t.name}: {str(e).splitlines()[0]}",
-                        file=sys.stderr,
-                    )
-                    continue
-                stats['rows'] += n
-                stats['files'].append((dat_name, n))
-                if cols:
-                    copy_statements.append(
-                        build_copy_statement(t.schema, t.name, cols, dat_name)
-                    )
+            # 컬럼 일괄 조회 (COPY 문 + 병렬 워커에서 재사용)
+            columns_map = {t.name: get_columns(conn, t.schema, t.name) for t in targets}
+            workers = resolve_workers()
+            est = estimate_rows(conn, opts.schema) if workers > 1 else {}
+            parallel, units = plan(targets, est, workers)
+            if parallel:
+                self._dump_parallel(opts, outdir, targets, columns_map, units,
+                                    workers, stats, copy_statements)
+            else:
+                self._dump_sequential(conn, opts, outdir, targets, columns_map,
+                                     stats, copy_statements)
 
         load_path = None
         if not opts.data_only and copy_statements:
@@ -145,6 +122,140 @@ class VerticaDumper:
 
         self._write_manifest(outdir, opts, stats, ddl_path, load_path, proc_info)
         return stats
+
+    # ---------- 데이터 덤프: 순차 / 병렬 ----------
+
+    def _dump_sequential(self, conn, opts, outdir, targets, columns_map,
+                         stats, copy_statements):
+        """순차 덤프 (테이블별 라이브 진행률 바)."""
+        n_targets = len(targets)
+        prog_on = progress_enabled()
+        for i, t in enumerate(targets, 1):
+            dat_name = f"{t.schema}.{t.name}.dat"
+            dat_path = os.path.join(outdir, dat_name)
+            cols = columns_map[t.name]
+            total = 0
+            if prog_on:
+                try:
+                    total = count_rows(conn, t.schema, t.name)
+                except Exception:
+                    total = 0
+            prog = Progress(f"[{i}/{n_targets}] {t.schema}.{t.name}", total, prog_on)
+            try:
+                with open(dat_path, 'w', encoding='utf-8', newline='') as fh:
+                    n, _ = dump_table_data(conn, t.schema, t.name, fh,
+                                           on_progress=prog.update, columns=cols)
+                prog.done(n)
+            except Exception as e:
+                prog.abort()
+                try:
+                    os.remove(dat_path)
+                except OSError:
+                    pass
+                stats['failed'].append((f"{t.schema}.{t.name}", str(e).splitlines()[0]))
+                print(f"[v_dump] WARN skip {t.schema}.{t.name}: {str(e).splitlines()[0]}",
+                      file=sys.stderr)
+                continue
+            stats['rows'] += n
+            stats['files'].append((dat_name, n))
+            if cols:
+                copy_statements.append(build_copy_statement(t.schema, t.name, cols, dat_name))
+
+    def _dump_parallel(self, opts, outdir, targets, columns_map, units,
+                       workers, stats, copy_statements):
+        """멀티프로세스 병렬 덤프. 거대 테이블은 샤드 파일로 받아 합친다."""
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+        from v_dump._worker import dump_unit
+
+        # 명시적 fork 컨텍스트: 부모 상태를 그대로 상속해 모듈 재임포트가 없다.
+        # (Python 3.14 의 기본 forkserver/spawn 은 main 모듈을 재임포트하려다
+        #  python -m / -c 실행에서 깨진다. 워커는 각자 새 커넥션을 연다.)
+        try:
+            mp_ctx = mp.get_context('fork')
+        except ValueError:
+            mp_ctx = mp.get_context()   # fork 불가 환경 대비(이론상 Linux 전용이라 발생X)
+
+        jobs = []
+        for u in units:
+            t, si = u['table'], u['shard_index']
+            if si is None:
+                outpath = os.path.join(outdir, f"{u['schema']}.{t}.dat")
+            else:
+                outpath = os.path.join(outdir, f"{u['schema']}.{t}.dat.part{si}")
+            jobs.append({'cfg': self.cfg, 'schema': u['schema'], 'table': t,
+                         'columns': columns_map[t], 'shard_index': si,
+                         'shard_count': u['shard_count'], 'outpath': outpath})
+
+        prog_on = progress_enabled()
+        total_units = len(jobs)
+        n_shards = sum(1 for u in units if u['shard_index'] is not None)
+        print(f"[v_dump] 병렬 덤프: workers={workers}, units={total_units} "
+              f"(테이블 {len(targets)}개, 샤드 {n_shards}개)", file=sys.stderr)
+
+        rows_by_table = {}
+        err_by_table = {}
+        parts_by_table = {}   # table -> [(shard_index, path), ...]
+        done = 0
+        with ProcessPoolExecutor(max_workers=workers, mp_context=mp_ctx) as ex:
+            futs = {ex.submit(dump_unit, j): j for j in jobs}
+            for fut in as_completed(futs):
+                j = futs[fut]
+                res = fut.result()
+                done += 1
+                t = res['table']
+                if res['error']:
+                    err_by_table[t] = res['error']
+                else:
+                    rows_by_table[t] = rows_by_table.get(t, 0) + res['rows']
+                if j['shard_index'] is not None:
+                    parts_by_table.setdefault(t, []).append((j['shard_index'], j['outpath']))
+                if prog_on:
+                    sys.stderr.write(f"\r  병렬 진행  [{done}/{total_units} units]  "
+                                     f"{sum(rows_by_table.values()):,} rows")
+                    sys.stderr.flush()
+                else:
+                    print(f"[v_dump]   [{done}/{total_units}] {opts.schema}.{t}"
+                          f"{('#'+str(j['shard_index'])) if j['shard_index'] is not None else ''}"
+                          f"  rows={res['rows']:,}", file=sys.stderr)
+        if prog_on:
+            sys.stderr.write('\n')
+            sys.stderr.flush()
+
+        # 입력 순서대로 stats 구성 + 샤드 재조립
+        for t in targets:
+            name = t.name
+            dat_name = f"{opts.schema}.{name}.dat"
+            dat_path = os.path.join(outdir, dat_name)
+            parts = parts_by_table.get(name)
+            if name in err_by_table:
+                # 실패 → 파트/부분파일 정리
+                for _, p in (parts or []):
+                    try:
+                        os.remove(p)
+                    except OSError:
+                        pass
+                try:
+                    os.remove(dat_path)
+                except OSError:
+                    pass
+                stats['failed'].append((f"{opts.schema}.{name}", err_by_table[name]))
+                print(f"[v_dump] WARN skip {opts.schema}.{name}: {err_by_table[name]}",
+                      file=sys.stderr)
+                continue
+            if parts:
+                # 샤드 파일을 하나의 .dat 으로 합침 (순서 무관, COPY 는 집합 적재)
+                with open(dat_path, 'wb') as out:
+                    for _, p in sorted(parts):
+                        with open(p, 'rb') as pf:
+                            shutil.copyfileobj(pf, out)
+                        os.remove(p)
+            n = rows_by_table.get(name, 0)
+            stats['rows'] += n
+            stats['files'].append((dat_name, n))
+            cols = columns_map[name]
+            if cols:
+                copy_statements.append(build_copy_statement(opts.schema, name, cols, dat_name))
 
     # ---------- internals ----------
 

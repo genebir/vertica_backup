@@ -89,6 +89,33 @@ def schema_exists(conn, schema: str) -> bool:
         return cur.fetchone() is not None
 
 
+def estimate_rows(conn, schema: str) -> dict:
+    """스키마 각 테이블의 추정 행수 {table_name: rows}. (COUNT 스캔 아님, 카탈로그)
+    프로젝션 단위 합 → 같은 테이블의 버디 프로젝션은 MAX 로 골라 중복 계수를 피한다.
+    실패하면 빈 dict (플래너는 추정 없으면 보수적으로 동작).
+    """
+    sql = """
+        SELECT anchor_table_name, MAX(prj_rows)
+          FROM (
+            SELECT anchor_table_name, projection_name, SUM(row_count) AS prj_rows
+              FROM v_monitor.projection_storage
+             WHERE projection_schema = %s
+             GROUP BY anchor_table_name, projection_name
+          ) p
+         GROUP BY anchor_table_name
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (schema,))
+            return {r[0]: int(r[1] or 0) for r in cur.fetchall()}
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return {}
+
+
 def count_rows(conn, schema: str, table: str) -> int:
     """진행률 총계용 행 수. (식별자는 파라미터 바인딩이 안 되므로 직접 인용)"""
     def q(name: str) -> str:

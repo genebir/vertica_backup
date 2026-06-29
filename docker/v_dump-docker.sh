@@ -119,7 +119,10 @@ fi
 # (restore/vsql 에는 주지 않는다 — vsql 이 pager 로 빠질 수 있어서.)
 TTY=()
 [[ "${1:-}" == "dump" && -t 1 ]] && TTY=(-t)
-# 사용자가 V_DUMP_PROGRESS 를 지정했으면 컨테이너로 전달(강제 on/off).
+# 진행률/병렬도 튜닝 환경변수 전달 (지정 시).
+#   V_DUMP_PROGRESS=1/0  진행률 바 강제 on/off
+#   V_DUMP_JOBS=auto|N   병렬 워커 수 (auto=min(코어,4), 1=순차)
 [[ -n "${V_DUMP_PROGRESS:-}" ]] && ENVS+=(-e "V_DUMP_PROGRESS=$V_DUMP_PROGRESS")
+[[ -n "${V_DUMP_JOBS:-}" ]] && ENVS+=(-e "V_DUMP_JOBS=$V_DUMP_JOBS")
 
 exec "$ENGINE" run --rm "${TTY[@]}" "${RUNAS[@]}" "${MOUNTS[@]}" "${ENVS[@]}" "$IMAGE" "${ARGS[@]}"

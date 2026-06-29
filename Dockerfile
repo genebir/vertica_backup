@@ -56,6 +56,7 @@ ARG CACHEBUST=0
 WORKDIR /app
 COPY __init__.py __main__.py cli.py config.py connection.py \
      data.py ddl.py dumper.py escape.py inspector.py progress.py \
+     planner.py _worker.py \
      /app/v_dump/
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1
