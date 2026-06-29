@@ -1,0 +1,13 @@
+# v_dump 접속 설정 템플릿.
+# install.sh 가 v_dump.yaml 이 없을 때 이 파일을 복사해 만든다.
+# 실제 값으로 채운 v_dump.yaml 은 비밀번호가 평문이므로 git 에 올리지 말 것.
+#
+# 우선순위: CLI 인자 > 환경변수(VERTICA_*) > --config yaml > 이 기본 yaml
+
+vertica:
+  host: 127.0.0.1
+  port: 5433
+  username: dbadmin
+  password: ""
+  dbname: VMart
+  tlsmode: disable

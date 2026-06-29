@@ -1,0 +1,12 @@
+# 빌드 컨텍스트에서 제외 (이미지엔 불필요한 것들)
+.venv/
+python_package/          # 도커 빌드는 온라인 pip 사용 → 번들 휠 불필요
+v_dump-image.tar
+*.pyc
+__pycache__/
+.gitignore
+README.md
+install.sh
+run.sh
+# 실제 접속정보(평문 비밀번호)는 이미지에 굽지 않는다. 런타임에 마운트.
+v_dump.yaml

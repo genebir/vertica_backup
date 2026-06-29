@@ -1,0 +1,113 @@
+###############################################################################
+# File            : v_dump/inspector.py
+# Writer          : 염기승
+# Date            : 2026-05-20
+# Desc            : v_catalog 메타데이터로 스키마/테이블/컬럼을 조회한다.
+###############################################################################
+
+from dataclasses import dataclass
+from typing import List
+
+
+@dataclass(frozen=True)
+class TableRef:
+    schema: str
+    name: str
+
+    @property
+    def qualified(self) -> str:
+        return f'"{self.schema}"."{self.name}"'
+
+
+def list_schemas(conn) -> List[str]:
+    sql = """
+        SELECT schema_name
+          FROM v_catalog.schemata
+         WHERE is_system_schema = FALSE
+         ORDER BY schema_name
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql)
+        return [r[0] for r in cur.fetchall()]
+
+
+def list_tables_in_schema(conn, schema: str) -> List[TableRef]:
+    """일반 테이블만 (뷰/임시/외부/플렉스 제외).
+    외부 테이블(table_definition 이 채워진 것)은 데이터가 Vertica 밖이라 SELECT 불가.
+    """
+    sql = """
+        SELECT table_schema, table_name
+          FROM v_catalog.tables
+         WHERE table_schema = %s
+           AND is_temp_table = FALSE
+           AND is_system_table = FALSE
+           AND is_flextable = FALSE
+           AND is_external_iceberg_table = FALSE
+           AND (table_definition IS NULL OR table_definition = '')
+         ORDER BY table_name
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema,))
+        return [TableRef(schema=r[0], name=r[1]) for r in cur.fetchall()]
+
+
+def is_external_table(conn, schema: str, table: str) -> bool:
+    sql = """
+        SELECT COALESCE(NULLIF(table_definition, ''), '') <> ''
+               OR is_flextable
+               OR is_external_iceberg_table
+          FROM v_catalog.tables
+         WHERE table_schema = %s AND table_name = %s
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema, table))
+        row = cur.fetchone()
+        return bool(row and row[0])
+
+
+def table_exists(conn, schema: str, table: str) -> bool:
+    sql = """
+        SELECT 1
+          FROM v_catalog.tables
+         WHERE table_schema = %s AND table_name = %s
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema, table))
+        return cur.fetchone() is not None
+
+
+def schema_exists(conn, schema: str) -> bool:
+    sql = """
+        SELECT 1 FROM v_catalog.schemata WHERE schema_name = %s
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema,))
+        return cur.fetchone() is not None
+
+
+def list_procedures(conn, schema: str) -> List[tuple]:
+    """스키마의 (저장)프로시저 목록. (이름, 인자문자열) 튜플 리스트.
+    인자문자열은 EXPORT_OBJECTS 시그니처로 그대로 쓰인다 ('NAME type, NAME type, ...').
+    """
+    sql = """
+        SELECT procedure_name, procedure_arguments
+          FROM v_catalog.user_procedures
+         WHERE schema_name = %s
+         ORDER BY procedure_name
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema,))
+        return [(r[0], r[1] or '') for r in cur.fetchall()]
+
+
+def get_columns(conn, schema: str, table: str) -> List[str]:
+    """SELECT 시 컬럼 순서 고정용. ordinal_position 정렬."""
+    sql = """
+        SELECT column_name
+          FROM v_catalog.columns
+         WHERE table_schema = %s AND table_name = %s
+         ORDER BY ordinal_position
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (schema, table))
+        return [r[0] for r in cur.fetchall()]

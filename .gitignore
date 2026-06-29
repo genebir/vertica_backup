@@ -1,0 +1,15 @@
+# ── 비밀 / 머신 종속 (절대 커밋 금지) ──
+# 실제 접속정보(평문 비밀번호). v_dump.yaml.example 만 커밋한다.
+v_dump.yaml
+.venv/
+__pycache__/
+*.pyc
+
+# ── 백업 산출물 (운영 DB 실데이터) ──
+backup/
+docker/backup/
+
+# ── 빌드 산출물 ──
+v_dump-image.tar
+v_dump-bundle.tar.gz
+*.image.tar
