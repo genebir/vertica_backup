@@ -62,6 +62,52 @@ PY
 )"
 }
 
+# load.sql 적재. 워커가 2개 이상이고 COPY 문이 2개 이상이면 COPY 를 세션 N개로
+# 분산해 동시 적재한다(각 COPY 는 서로 다른 테이블이라 병렬 안전). 그 외엔 순차.
+# 병렬도: V_DUMP_JOBS(auto=min(nproc,4) | 정수). 순차는 기존처럼 단일 트랜잭션,
+# 병렬은 세션별 AUTOCOMMIT(테이블 단위 커밋).
+_run_load() {
+  local load_file="$1"; shift
+  local passthru=("$@")
+  local cores n jobs total
+  cores="$(nproc 2>/dev/null || echo 1)"
+  jobs="${V_DUMP_JOBS:-auto}"
+  case "$jobs" in
+    ''|auto|*[!0-9]*) n=$(( cores < 4 ? cores : 4 ));;
+    *) n="$jobs";;
+  esac
+  total="$(grep -c '^COPY ' "$load_file" 2>/dev/null || echo 0)"
+
+  if [[ "$n" -le 1 || "$total" -le 1 ]]; then
+    vsql -h "$VHOST" -p "$VPORT" -U "$VUSER" -w "$VPASS" -d "$VDB" \
+         -v ON_ERROR_STOP=on -f "$load_file" "${passthru[@]}"
+    return $?
+  fi
+
+  echo "[restore] 병렬 적재: ${n} sessions, ${total} COPY" >&2
+  local tmp; tmp="$(mktemp -d)"
+  grep '^COPY ' "$load_file" | awk -v n="$n" -v d="$tmp" '{ print > (d "/b." (NR % n) ".copy") }'
+  local pids=() ks=() rc=0 k i
+  for ((k=0; k<n; k++)); do
+    local cf="$tmp/b.$k.copy"
+    [[ -s "$cf" ]] || continue
+    { echo '\set ON_ERROR_STOP on'; echo '\set AUTOCOMMIT on'; cat "$cf"; } > "$tmp/s.$k.sql"
+    vsql -h "$VHOST" -p "$VPORT" -U "$VUSER" -w "$VPASS" -d "$VDB" \
+         -f "$tmp/s.$k.sql" "${passthru[@]}" > "$tmp/s.$k.log" 2>&1 &
+    pids+=("$!"); ks+=("$k")
+  done
+  for i in "${!pids[@]}"; do
+    if ! wait "${pids[$i]}"; then
+      rc=1
+      echo "[restore] 세션 ${ks[$i]} 오류:" >&2
+      grep -iE 'ERROR|ROLLBACK' "$tmp/s.${ks[$i]}.log" | head -3 >&2 || true
+    fi
+  done
+  echo "[restore] 병렬 적재 종료 (rc=$rc)" >&2
+  rm -rf "$tmp"
+  return $rc
+}
+
 cmd="${1:-help}"
 shift || true
 
@@ -128,8 +174,8 @@ case "$cmd" in
     fi
 
     echo "[restore] $VHOST:$VPORT/$VDB ← $(pwd)/$load_file" >&2
-    exec vsql -h "$VHOST" -p "$VPORT" -U "$VUSER" -w "$VPASS" -d "$VDB" \
-              -v ON_ERROR_STOP=on -f "$load_file" "${passthru[@]}"
+    _run_load "$load_file" "${passthru[@]}"
+    exit $?
     ;;
 
   vsql)
