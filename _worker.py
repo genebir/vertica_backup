@@ -27,10 +27,11 @@ def dump_unit(args: dict) -> dict:
     sc = args['shard_count']
     outpath = args['outpath']
     compress = args.get('compress', False)
+    node_index = args.get('node_index', 0)   # 멀티노드면 워커마다 다른 노드를 1순위로
 
     where = shard_where(columns, sc, si) if si is not None else None
     try:
-        with vertica_connection(cfg) as conn:
+        with vertica_connection(cfg, primary_index=node_index) as conn:
             with open_dat_writer(outpath, compress) as fh:
                 rows, _ = dump_table_data(conn, schema, table, fh,
                                           columns=columns, where=where)

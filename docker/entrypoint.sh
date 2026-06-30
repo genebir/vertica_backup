@@ -52,7 +52,9 @@ load_conn() {
 import shlex
 from v_dump.config import build_config
 c = build_config()
-print(f"VHOST={shlex.quote(c.host)}")
+hs = c.hosts                       # 멀티노드 목록 (host 가 'n1,n2,n3' 이면 분해)
+print(f"VHOST={shlex.quote(hs[0])}")            # 단일 연결/DDL 용 1순위 노드
+print(f"VHOSTS={shlex.quote(' '.join(hs))}")    # 병렬 적재용 전체 노드
 print(f"VPORT={c.port}")
 print(f"VUSER={shlex.quote(c.user)}")
 print(f"VPASS={shlex.quote(c.password)}")
@@ -84,7 +86,10 @@ _run_load() {
     return $?
   fi
 
-  echo "[restore] 병렬 적재: ${n} sessions, ${total} COPY" >&2
+  # 멀티노드면 세션을 노드들에 라운드로빈 → 적재 initiator 분산(단일노드 병목 해소)
+  local hostarr; read -ra hostarr <<< "${VHOSTS:-$VHOST}"
+  local nh=${#hostarr[@]}
+  echo "[restore] 병렬 적재: ${n} sessions, ${total} COPY, ${nh} node(s)" >&2
   local tmp; tmp="$(mktemp -d)"
   grep '^COPY ' "$load_file" | awk -v n="$n" -v d="$tmp" '{ print > (d "/b." (NR % n) ".copy") }'
   local pids=() ks=() rc=0 k i
@@ -92,7 +97,8 @@ _run_load() {
     local cf="$tmp/b.$k.copy"
     [[ -s "$cf" ]] || continue
     { echo '\set ON_ERROR_STOP on'; echo '\set AUTOCOMMIT on'; cat "$cf"; } > "$tmp/s.$k.sql"
-    vsql -h "$VHOST" -p "$VPORT" -U "$VUSER" -w "$VPASS" -d "$VDB" \
+    local h="${hostarr[$(( k % nh ))]}"
+    vsql -h "$h" -p "$VPORT" -U "$VUSER" -w "$VPASS" -d "$VDB" \
          -f "$tmp/s.$k.sql" "${passthru[@]}" > "$tmp/s.$k.log" 2>&1 &
     pids+=("$!"); ks+=("$k")
   done

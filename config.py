@@ -20,19 +20,35 @@ import yaml
 # v_dump/ 패키지와 같은 위치의 v_dump.yaml 을 기본 설정으로 자동 로드.
 DEFAULT_CONFIG_PATH = str(Path(__file__).resolve().parent / 'v_dump.yaml')
 
+# 노드당 연결 시도 타임아웃(초). 멀티노드 failover 가 빠르게 다음 노드로 넘어가게 한다.
+CONNECT_TIMEOUT = 8
+
 
 @dataclass
 class ConnectionConfig:
-    host: str
+    host: str          # 'node1' 또는 멀티노드 'node1,node2,node3'
     port: int
     user: str
     password: str
     database: str
     tlsmode: str = 'disable'
 
-    def to_vertica_kwargs(self) -> dict:
-        return {
-            'host': self.host,
+    @property
+    def hosts(self) -> list:
+        """host 를 콤마로 분해한 노드 목록 (멀티노드)."""
+        hs = [h.strip() for h in (self.host or '').split(',') if h.strip()]
+        return hs or [self.host]
+
+    def to_vertica_kwargs(self, primary_index: int = 0) -> dict:
+        """primary_index 노드를 1순위로, 나머지는 backup_server_node 로(자동 failover).
+        워커마다 primary_index 를 돌리면 커넥션이 노드들에 분산돼 단일노드 병목을 푼다.
+        """
+        hs = self.hosts
+        n = len(hs)
+        primary = hs[primary_index % n]
+        backups = [hs[(primary_index + i) % n] for i in range(1, n)]
+        kw = {
+            'host': primary,
             'port': self.port,
             'user': self.user,
             'password': self.password,
@@ -41,7 +57,12 @@ class ConnectionConfig:
             # 깨진 UTF-8 바이트가 섞인 컬럼이 있어도 fetch 가 중단되지 않게.
             # 손상 위치는 U+FFFD 로 치환된다.
             'unicode_error': 'replace',
+            # 응답 없는 노드(블랙홀)에 무한정 매달리지 않게 → failover 가 실제로 작동.
+            'connection_timeout': CONNECT_TIMEOUT,
         }
+        if backups:
+            kw['backup_server_node'] = backups   # 1순위 노드 불가 시 자동 failover
+        return kw
 
 
 def _from_yaml(path: str) -> dict:

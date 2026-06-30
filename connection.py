@@ -20,8 +20,8 @@ warnings.filterwarnings('ignore', category=UserWarning, module=r'vertica_python\
 
 
 @contextmanager
-def vertica_connection(cfg: ConnectionConfig):
-    conn = vertica_python.connect(**cfg.to_vertica_kwargs())
+def vertica_connection(cfg: ConnectionConfig, primary_index: int = 0):
+    conn = vertica_python.connect(**cfg.to_vertica_kwargs(primary_index))
     try:
         yield conn
     finally:

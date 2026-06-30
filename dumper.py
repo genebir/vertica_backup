@@ -178,8 +178,9 @@ class VerticaDumper:
         except ValueError:
             mp_ctx = mp.get_context()   # fork 불가 환경 대비(이론상 Linux 전용이라 발생X)
 
+        n_nodes = len(self.cfg.hosts)   # 멀티노드면 워커를 노드들에 분산(단일노드 병목 해소)
         jobs = []
-        for u in units:
+        for idx, u in enumerate(units):
             t, si = u['table'], u['shard_index']
             final = dat_name(u['schema'], t, opts.compress)   # <schema>.<table>.dat[.gz]
             if si is None:
@@ -189,7 +190,7 @@ class VerticaDumper:
             jobs.append({'cfg': self.cfg, 'schema': u['schema'], 'table': t,
                          'columns': columns_map[t], 'shard_index': si,
                          'shard_count': u['shard_count'], 'outpath': outpath,
-                         'compress': opts.compress})
+                         'compress': opts.compress, 'node_index': idx % n_nodes})
 
         prog_on = progress_enabled()
         total_units = len(jobs)

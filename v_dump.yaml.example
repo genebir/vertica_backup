@@ -5,6 +5,10 @@
 # 우선순위: CLI 인자 > 환경변수(VERTICA_*) > --config yaml > 이 기본 yaml
 
 vertica:
+  # 단일 노드: 'host'. 멀티노드 클러스터: 콤마로 여러 노드를 적으면
+  #   - 앞 노드가 죽으면 자동 failover
+  #   - 병렬 덤프/복원이 노드들에 분산돼 단일노드 병목을 푼다
+  # 예) host: node1,node2,node3
   host: 127.0.0.1
   port: 5433
   username: dbadmin
