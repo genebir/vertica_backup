@@ -22,8 +22,10 @@ ROOT="$(dirname "$HERE")"                              # .../v_dump  (= build co
 IMAGE="${IMAGE:-v_dump:latest}"
 OUT_TAR="${OUT_TAR:-$ROOT/v_dump-image.tar}"
 
-# 컨테이너 런타임 선택
-if command -v podman >/dev/null 2>&1; then
+# 컨테이너 런타임 선택. ENGINE 환경변수로 강제 가능(docker|podman).
+if [[ -n "${ENGINE:-}" ]]; then
+  command -v "$ENGINE" >/dev/null 2>&1 || { echo "[build] ENGINE='$ENGINE' 명령을 찾을 수 없습니다." >&2; exit 1; }
+elif command -v podman >/dev/null 2>&1; then
   ENGINE=podman
 elif command -v docker >/dev/null 2>&1; then
   ENGINE=docker

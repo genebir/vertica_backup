@@ -44,8 +44,12 @@ if [[ -z "$V_DUMP_YAML" ]]; then
   done
 fi
 
-# 런타임 선택
-if command -v podman >/dev/null 2>&1; then
+# 런타임 선택. ENGINE 환경변수로 강제 가능(docker|podman).
+# (podman·docker 둘 다 깔린 RHEL 등에서 docker 를 강제하고 싶을 때: ENGINE=docker)
+# 미지정 시 podman 우선, 없으면 docker 자동.
+if [[ -n "${ENGINE:-}" ]]; then
+  command -v "$ENGINE" >/dev/null 2>&1 || { echo "[run] ENGINE='$ENGINE' 명령을 찾을 수 없습니다." >&2; exit 1; }
+elif command -v podman >/dev/null 2>&1; then
   ENGINE=podman
 elif command -v docker >/dev/null 2>&1; then
   ENGINE=docker

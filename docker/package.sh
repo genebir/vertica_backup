@@ -56,7 +56,10 @@ cat > "$STAGE/LOAD-ME.sh" <<'LOAD'
 # 폐쇄망 호스트에서 실행: 이미지 등록 + 실행 준비.
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if command -v podman >/dev/null 2>&1; then ENGINE=podman
+# ENGINE 환경변수로 강제 가능(docker|podman). 미지정 시 podman 우선, 없으면 docker.
+if [[ -n "${ENGINE:-}" ]]; then
+  command -v "$ENGINE" >/dev/null 2>&1 || { echo "ENGINE='$ENGINE' 명령 없음" >&2; exit 1; }
+elif command -v podman >/dev/null 2>&1; then ENGINE=podman
 elif command -v docker >/dev/null 2>&1; then ENGINE=docker
 else echo "podman/docker 가 필요합니다." >&2; exit 1; fi
 echo "[load] $ENGINE load -i v_dump-image.tar"
@@ -75,6 +78,12 @@ v_dump 폐쇄망 배포 묶음
    ./v_dump-docker.sh restore YOUR_SCHEMA/all --with-ddl
 
 백업 결과는 이 폴더의 backup/ 아래에 생긴다.
+
+[엔진 선택]
+- 기본은 podman 우선, 없으면 docker 자동.
+- podman·docker 가 둘 다 깔려 있고 docker 를 쓰고 싶으면 ENGINE=docker 로 강제:
+    ENGINE=docker ./LOAD-ME.sh
+    ENGINE=docker ./v_dump-docker.sh dump --schema YOUR_SCHEMA
 TXT
 
 chmod +x "$STAGE/LOAD-ME.sh" "$STAGE/v_dump-docker.sh"
