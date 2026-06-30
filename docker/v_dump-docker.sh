@@ -44,19 +44,30 @@ if [[ -z "$V_DUMP_YAML" ]]; then
   done
 fi
 
-# 런타임 선택. ENGINE 환경변수로 강제 가능(docker|podman).
-# (podman·docker 둘 다 깔린 RHEL 등에서 docker 를 강제하고 싶을 때: ENGINE=docker)
-# 미지정 시 podman 우선, 없으면 docker 자동.
+# 런타임 선택.
+#  - ENGINE 환경변수가 있으면 그걸 강제 (docker|podman).
+#  - 없으면 "이미지가 실제로 로드된 엔진" 을 자동 선택한다.
+#    (docker 에만 load 했으면 docker 가 자동 선택됨 → podman 프롬프트 회피)
+#    어느 쪽에도 없으면 사용 가능한 엔진(podman 우선)으로 폴백.
+_has_image() {   # $1=engine : 이미지 보유 시 0
+  case "$1" in
+    podman) podman image exists "$IMAGE" 2>/dev/null || podman image exists "localhost/$IMAGE" 2>/dev/null ;;
+    docker) docker image inspect "$IMAGE" >/dev/null 2>&1 ;;
+  esac
+}
 if [[ -n "${ENGINE:-}" ]]; then
   command -v "$ENGINE" >/dev/null 2>&1 || { echo "[run] ENGINE='$ENGINE' 명령을 찾을 수 없습니다." >&2; exit 1; }
-elif command -v podman >/dev/null 2>&1; then
-  ENGINE=podman
-elif command -v docker >/dev/null 2>&1; then
-  ENGINE=docker
 else
-  echo "[run] docker 도 podman 도 없습니다." >&2
-  exit 1
+  ENGINE=""
+  for e in podman docker; do
+    command -v "$e" >/dev/null 2>&1 && _has_image "$e" && { ENGINE="$e"; break; }
+  done
+  if [[ -z "$ENGINE" ]]; then   # 어느 엔진에도 이미지가 없으면 사용 가능한 것으로
+    for e in podman docker; do command -v "$e" >/dev/null 2>&1 && { ENGINE="$e"; break; }; done
+  fi
+  [[ -n "$ENGINE" ]] || { echo "[run] docker 도 podman 도 없습니다." >&2; exit 1; }
 fi
+echo "[run] engine: $ENGINE" >&2
 
 # podman 은 레지스트리 접두 없는 짧은 이미지명(v_dump:latest)을 받으면
 # "어느 레지스트리에서 받을지" 프롬프트를 띄운다. podman load 로 들어온 로컬
