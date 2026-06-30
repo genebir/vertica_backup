@@ -21,7 +21,7 @@ if not req:
     sys.exit("[filter_load] 복원할 테이블 인자가 없습니다.")
 
 want = set(req)
-copy_re = re.compile(r"FROM LOCAL '([^']+)\.dat'")
+copy_re = re.compile(r"FROM LOCAL '(.+?)\.dat(?:\.gz)?'")   # .dat 또는 .dat.gz
 
 with open('load.sql', encoding='utf-8') as f:
     lines = f.readlines()

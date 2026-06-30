@@ -22,7 +22,7 @@ from typing import List, Optional
 
 from v_dump.config import ConnectionConfig
 from v_dump.connection import vertica_connection
-from v_dump.data import build_copy_statement, dump_table_data
+from v_dump.data import build_copy_statement, dat_name, dump_table_data, open_dat_writer
 from v_dump.ddl import export_objects_ddl, make_idempotent
 from v_dump.inspector import (
     TableRef,
@@ -45,6 +45,7 @@ class DumpOptions:
     schema_only: bool = False        # DDL 만 (.dat 생성 안 함)
     data_only: bool = False          # 데이터만 (DDL/load.sql 생성 안 함)
     include_procedures: bool = True  # 테이블 단위 백업 시, 이름에 테이블명이 포함된 프로시저 DDL 도 추출
+    compress: bool = False           # .dat 을 gzip(.dat.gz)으로 — 전송/보관 용량↓ (COPY GZIP)
 
 
 class VerticaDumper:
@@ -131,8 +132,8 @@ class VerticaDumper:
         n_targets = len(targets)
         prog_on = progress_enabled()
         for i, t in enumerate(targets, 1):
-            dat_name = f"{t.schema}.{t.name}.dat"
-            dat_path = os.path.join(outdir, dat_name)
+            dname = dat_name(t.schema, t.name, opts.compress)
+            dat_path = os.path.join(outdir, dname)
             cols = columns_map[t.name]
             total = 0
             if prog_on:
@@ -142,7 +143,7 @@ class VerticaDumper:
                     total = 0
             prog = Progress(f"[{i}/{n_targets}] {t.schema}.{t.name}", total, prog_on)
             try:
-                with open(dat_path, 'w', encoding='utf-8', newline='') as fh:
+                with open_dat_writer(dat_path, opts.compress) as fh:
                     n, _ = dump_table_data(conn, t.schema, t.name, fh,
                                            on_progress=prog.update, columns=cols)
                 prog.done(n)
@@ -157,9 +158,10 @@ class VerticaDumper:
                       file=sys.stderr)
                 continue
             stats['rows'] += n
-            stats['files'].append((dat_name, n))
+            stats['files'].append((dname, n))
             if cols:
-                copy_statements.append(build_copy_statement(t.schema, t.name, cols, dat_name))
+                copy_statements.append(
+                    build_copy_statement(t.schema, t.name, cols, dname, compress=opts.compress))
 
     def _dump_parallel(self, opts, outdir, targets, columns_map, units,
                        workers, stats, copy_statements):
@@ -179,13 +181,15 @@ class VerticaDumper:
         jobs = []
         for u in units:
             t, si = u['table'], u['shard_index']
+            final = dat_name(u['schema'], t, opts.compress)   # <schema>.<table>.dat[.gz]
             if si is None:
-                outpath = os.path.join(outdir, f"{u['schema']}.{t}.dat")
+                outpath = os.path.join(outdir, final)
             else:
-                outpath = os.path.join(outdir, f"{u['schema']}.{t}.dat.part{si}")
+                outpath = os.path.join(outdir, f"{final}.part{si}")  # gzip 멤버라 concat 가능
             jobs.append({'cfg': self.cfg, 'schema': u['schema'], 'table': t,
                          'columns': columns_map[t], 'shard_index': si,
-                         'shard_count': u['shard_count'], 'outpath': outpath})
+                         'shard_count': u['shard_count'], 'outpath': outpath,
+                         'compress': opts.compress})
 
         prog_on = progress_enabled()
         total_units = len(jobs)
@@ -225,8 +229,8 @@ class VerticaDumper:
         # 입력 순서대로 stats 구성 + 샤드 재조립
         for t in targets:
             name = t.name
-            dat_name = f"{opts.schema}.{name}.dat"
-            dat_path = os.path.join(outdir, dat_name)
+            dname = dat_name(opts.schema, name, opts.compress)
+            dat_path = os.path.join(outdir, dname)
             parts = parts_by_table.get(name)
             if name in err_by_table:
                 # 실패 → 파트/부분파일 정리
@@ -252,10 +256,11 @@ class VerticaDumper:
                         os.remove(p)
             n = rows_by_table.get(name, 0)
             stats['rows'] += n
-            stats['files'].append((dat_name, n))
+            stats['files'].append((dname, n))
             cols = columns_map[name]
             if cols:
-                copy_statements.append(build_copy_statement(opts.schema, name, cols, dat_name))
+                copy_statements.append(
+                    build_copy_statement(opts.schema, name, cols, dname, compress=opts.compress))
 
     # ---------- internals ----------
 

@@ -54,6 +54,13 @@ def _build_parser() -> argparse.ArgumentParser:
         help='프로시저 DDL 추출 끔.',
     )
 
+    comp = p.add_argument_group('compression')
+    comp.add_argument(
+        '--compress', action='store_true',
+        help='.dat 를 gzip(.dat.gz)으로 저장 → 전송/보관 용량 대폭 감소. '
+             '복원은 load.sql 의 GZIP 필터로 자동(무손실).',
+    )
+
     out = p.add_argument_group('output')
     out.add_argument(
         '--output', '-o',
@@ -121,7 +128,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 DumpOptions(
                     schema=args.schema, tables=[t],
                     schema_only=args.schema_only, data_only=args.data_only,
-                    include_procedures=include_proc,
+                    include_procedures=include_proc, compress=args.compress,
                 ),
             ))
     else:
@@ -132,7 +139,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             DumpOptions(
                 schema=args.schema, tables=None,
                 schema_only=args.schema_only, data_only=args.data_only,
-                include_procedures=include_proc,
+                include_procedures=include_proc, compress=args.compress,
             ),
         ))
 

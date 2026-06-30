@@ -9,6 +9,7 @@
 # Desc            : 테이블 행을 Vertica COPY 호환 파이프 구분 .dat 파일로 직렬화.
 ###############################################################################
 
+import gzip
 from typing import IO, Iterable, List
 
 from v_dump.escape import format_copy_row
@@ -19,6 +20,20 @@ _FETCH_SIZE = 20000   # 서버 round-trip 감소 (메모리와의 균형)
 
 def _quote_ident(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
+
+
+def dat_name(schema: str, table: str, compress: bool = False) -> str:
+    """.dat 파일명. 압축이면 .dat.gz."""
+    return f"{schema}.{table}.dat" + ('.gz' if compress else '')
+
+
+def open_dat_writer(path: str, compress: bool = False):
+    """.dat 쓰기 핸들. 압축이면 gzip 텍스트 모드(쓰는 줄은 동일).
+    gzip 멤버는 이어붙여도 유효하므로 샤드 파일을 그대로 concat 할 수 있다.
+    """
+    if compress:
+        return gzip.open(path, 'wt', encoding='utf-8', newline='')
+    return open(path, 'w', encoding='utf-8', newline='')
 
 
 def shard_where(columns: List[str], shard_count: int, shard_index: int) -> str:
@@ -77,15 +92,18 @@ def dump_table_data(conn, schema: str, table: str, out: IO, on_progress=None,
     return count, columns
 
 
-def build_copy_statement(schema: str, table: str, columns: List[str], dat_filename: str) -> str:
+def build_copy_statement(schema: str, table: str, columns: List[str], dat_filename: str,
+                         compress: bool = False) -> str:
     """
     .dat 을 다시 적재하는 COPY 문. vsql 에서 `\\i load.sql` 로 실행.
     FROM LOCAL 이라 vsql 클라이언트의 파일 경로 기준.
+    compress 면 GZIP 필터 추가 → Vertica 가 압축 파일을 직접 읽는다(별도 해제 불필요).
     """
     cols = ', '.join(_quote_ident(c) for c in columns)
+    gz = 'GZIP ' if compress else ''
     return (
         f"COPY {_quote_ident(schema)}.{_quote_ident(table)} ({cols}) "
-        f"FROM LOCAL '{dat_filename}' "
+        f"FROM LOCAL '{dat_filename}' {gz}"
         f"DELIMITER '|' NULL AS '\\N' ENCLOSED BY '' "
         f"ABORT ON ERROR DIRECT;\n"
     )

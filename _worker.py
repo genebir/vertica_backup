@@ -12,11 +12,11 @@
 import os
 
 from v_dump.connection import vertica_connection
-from v_dump.data import dump_table_data, shard_where
+from v_dump.data import dump_table_data, open_dat_writer, shard_where
 
 
 def dump_unit(args: dict) -> dict:
-    """args = {cfg, schema, table, columns, shard_index, shard_count, outpath}
+    """args = {cfg, schema, table, columns, shard_index, shard_count, outpath, compress}
     반환 = {table, shard_index, rows, error}
     """
     cfg = args['cfg']
@@ -26,11 +26,12 @@ def dump_unit(args: dict) -> dict:
     si = args['shard_index']
     sc = args['shard_count']
     outpath = args['outpath']
+    compress = args.get('compress', False)
 
     where = shard_where(columns, sc, si) if si is not None else None
     try:
         with vertica_connection(cfg) as conn:
-            with open(outpath, 'w', encoding='utf-8', newline='') as fh:
+            with open_dat_writer(outpath, compress) as fh:
                 rows, _ = dump_table_data(conn, schema, table, fh,
                                           columns=columns, where=where)
         return {'table': table, 'shard_index': si, 'rows': rows, 'error': None}
