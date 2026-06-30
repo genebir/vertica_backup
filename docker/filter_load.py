@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # ───────────────────────────────────────────────────────────────────────────
 # Author    : 염기승 (Gibseung Yeom)  <duarltmd1@naver.com>
-# Copyright : (c) 2026 염기승. All rights reserved.  무단 수정·재배포 금지.
+# Copyright : (c) 2026 염기승 (Gibseung Yeom)
+# License   : Apache-2.0 (see LICENSE)
 # ───────────────────────────────────────────────────────────────────────────
 ###############################################################################
 # load.sql 에서 지정한 테이블의 COPY 문만 골라 load.filtered.sql 로 출력.

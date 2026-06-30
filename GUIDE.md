@@ -576,4 +576,4 @@ VERTICA_HOST=dev VERTICA_DATABASE=MYDB_DEV \
 
 ---
 
-© 2026 염기승 (Gibseung Yeom) <duarltmd1@naver.com> — author & copyright holder of **v_dump**. All rights reserved.
+© 2026 염기승 (Gibseung Yeom) <duarltmd1@naver.com> — author & copyright holder of **v_dump**. Licensed under the Apache License 2.0 (see LICENSE).
