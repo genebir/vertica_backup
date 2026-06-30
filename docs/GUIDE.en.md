@@ -75,9 +75,11 @@ This guide covers only the **Docker approach**.
 - Docker (or podman) — **nothing else (Python/vsql, etc.) is required**
 - Network reachability to the target Vertica (e.g., port `5433`)
 
-### Materials
-- The `v_dump/` directory (source + `Dockerfile` + `docker/`)
-- `vertica-client-*.tar.gz` (the vsql client, bundled inside `v_dump/`)
+### Materials (repository layout)
+- `v_dump/` — the Python package (source)
+- `docker/` — run wrapper, entrypoint, build/packaging scripts
+- `assets/vertica-client-*.tar.gz` — the vsql client (bundled, for installing vsql into the image)
+- root `Dockerfile` · `requirements.txt`
 
 ---
 

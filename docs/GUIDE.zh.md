@@ -76,9 +76,11 @@
 - Docker (或 podman) — **除此之外 Python/vsql 等什么都不需要**
 - 对目标 Vertica 的网络可达性 (例如 `5433` 端口)
 
-### 资料
-- `v_dump/` 目录 (源码 + `Dockerfile` + `docker/`)
-- `vertica-client-*.tar.gz` (vsql 客户端，随附于 `v_dump/` 内)
+### 资料 (本仓库结构)
+- `v_dump/` — Python 包(源码)
+- `docker/` — 运行包装脚本、entrypoint、构建/打包脚本
+- `assets/vertica-client-*.tar.gz` — vsql 客户端(随附,用于把 vsql 安装进镜像)
+- 根目录的 `Dockerfile` · `requirements.txt`
 
 ---
 

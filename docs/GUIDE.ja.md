@@ -76,9 +76,11 @@ Vertica のスキーマ・テーブル・プロシージャをファイルにバ
 - Docker (または podman) — **それ以外の Python/vsql などは一切不要**
 - 対象 Vertica へのネットワーク到達性 (例: `5433` ポート)
 
-### 資料
-- `v_dump/` ディレクトリ (ソース + `Dockerfile` + `docker/`)
-- `vertica-client-*.tar.gz` (vsql クライアント、`v_dump/` 内に同梱)
+### 資料 (このリポジトリの構成)
+- `v_dump/` — Python パッケージ(ソース)
+- `docker/` — 実行ラッパー・エントリポイント・ビルド/パッケージングスクリプト
+- `assets/vertica-client-*.tar.gz` — vsql クライアント(イメージへの vsql インストール用、同梱)
+- ルートの `Dockerfile` · `requirements.txt`
 
 ---
 
