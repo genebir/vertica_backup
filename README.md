@@ -120,4 +120,4 @@ tar xzf v_dump-deploy.tar.gz && cd v_dump-deploy
 
 ---
 
-© 2026 염기승 (Gibseung Yeom) <duarltmd1@naver.com> — author & copyright holder of **v_dump**. Licensed under the Apache License 2.0 (see LICENSE).
+© 2026 염기승 (Kiseung Yeom) <duarltmd1@naver.com> — author & copyright holder of **v_dump**. Licensed under the Apache License 2.0 (see LICENSE).

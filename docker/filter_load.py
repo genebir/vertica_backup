@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ───────────────────────────────────────────────────────────────────────────
-# Author    : 염기승 (Gibseung Yeom)  <duarltmd1@naver.com>
-# Copyright : (c) 2026 염기승 (Gibseung Yeom)
+# Author    : 염기승 (Kiseung Yeom)  <duarltmd1@naver.com>
+# Copyright : (c) 2026 염기승 (Kiseung Yeom)
 # License   : Apache-2.0 (see LICENSE)
 # ───────────────────────────────────────────────────────────────────────────
 ###############################################################################
