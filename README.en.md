@@ -54,6 +54,7 @@ v_dump is the tool for exactly that gap — it backs up **with nothing but a sin
 | Advantage | Details |
 |---|---|
 | **No privileges** | A single read-only SQL connection. No SSH, node access, or server privileges needed → security-friendly |
+| **Multi-node** | List nodes comma-separated in `host` → automatic failover + parallelism distributed across nodes |
 | **Portability** | `.dat`+DDL loads into any Vertica with a different version or topology |
 | **Selectivity** | Dump one table, several, or a whole schema, and restore just one |
 | **Transparency** | Open the `.dat` and inspect/verify the contents as-is |

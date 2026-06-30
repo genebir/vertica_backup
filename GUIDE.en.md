@@ -154,6 +154,19 @@ vertica:
 > ⚠️ Since the password is plaintext, it is not baked into the image (excluded via `.dockerignore`). It is mounted only at runtime.
 > Auto-discovery order: `run-location/v_dump.yaml` → `run-location/backup/v_dump.yaml` → script's parent.
 
+**Multi-node cluster.** If you list **multiple nodes separated by commas** in `host`:
+- If the leading node goes down, it **automatically fails over** to the next node (8-second connection timeout per node)
+- Parallel dump workers and restore COPY sessions are **distributed across the nodes**, relieving the single-node initiator bottleneck
+
+```yaml
+vertica:
+  host: node1,node2,node3      # put the closest, fastest node first
+  port: 5433                   # common port for all nodes
+  ...
+```
+
+> If you list only one node, it behaves exactly as before (backward compatible).
+
 ### 4-2. Environment Variables (one-off / different DB)
 
 Prepend them just for that run and they take precedence over the yaml.
@@ -284,6 +297,9 @@ The worker count defaults to `min(cores, 4)`. To tune it, use the environment va
 V_DUMP_JOBS=8 ./v_dump-docker.sh dump --schema MY_SCHEMA   # 8 workers
 V_DUMP_JOBS=1 ./v_dump-docker.sh dump --schema MY_SCHEMA   # force sequential
 ```
+
+**Multi-node is faster.** If you list nodes comma-separated in `host` (4-1), parallel workers/COPY sessions are
+distributed across the nodes, relieving the bottleneck of data piling onto a single node. With 3 nodes, throughput rises accordingly.
 
 **Compression (`--compress`).** Saves `.dat` as gzip (`.dat.gz`). For air-gapped transfer it **greatly reduces the size you carry
 over USB** (5–10×, depending on the data). On restore, a `GZIP` filter is automatically embedded in `load.sql`, so

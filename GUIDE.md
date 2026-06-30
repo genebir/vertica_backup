@@ -155,6 +155,19 @@ vertica:
 > ⚠️ 비밀번호가 평문이므로 이미지에 굽지 않는다(`.dockerignore` 로 제외). 런타임에만 마운트된다.
 > 자동 탐색 순서: `실행위치/v_dump.yaml` → `실행위치/backup/v_dump.yaml` → 스크립트 부모.
 
+**멀티노드 클러스터.** `host` 에 노드를 **콤마로 여러 개** 적으면:
+- 앞 노드가 죽으면 다음 노드로 **자동 failover** (노드당 연결 타임아웃 8초)
+- 병렬 덤프 워커와 복원 COPY 세션이 **노드들에 분산**돼 단일노드 initiator 병목을 푼다
+
+```yaml
+vertica:
+  host: node1,node2,node3      # 가장 가깝고 빠른 노드를 앞에
+  port: 5433                   # 모든 노드 공통 포트
+  ...
+```
+
+> 노드 하나만 적으면 기존과 똑같이 동작한다(하위호환).
+
 ### 4-2. 환경변수 (일회성·다른 DB)
 
 그 실행 앞에만 붙이면 yaml 보다 우선한다.
@@ -285,6 +298,9 @@ procedures:
 V_DUMP_JOBS=8 ./v_dump-docker.sh dump --schema MY_SCHEMA   # 워커 8개
 V_DUMP_JOBS=1 ./v_dump-docker.sh dump --schema MY_SCHEMA   # 순차 강제
 ```
+
+**멀티노드면 더 빠르다.** `host` 에 노드를 콤마로 나열하면(4-1) 병렬 워커/COPY 세션이
+노드들에 분산돼, 한 노드에 데이터가 모이는 병목이 풀린다. 3노드면 그만큼 처리량이 올라간다.
 
 **압축(`--compress`).** `.dat` 를 gzip(`.dat.gz`)으로 저장한다. 에어갭 이관에서 **USB 로 옮길
 용량을 크게 줄여준다**(데이터에 따라 5~10×). 복원은 `load.sql` 에 `GZIP` 필터가 자동으로 박혀
