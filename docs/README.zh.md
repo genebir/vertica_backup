@@ -1,6 +1,6 @@
 # v_dump — Vertica 逻辑备份工具 (client-side)
 
-[🇰🇷 한국어](README.md) · [🇬🇧 English](README.en.md) · [🇯🇵 日本語](README.ja.md) · **🇨🇳 中文**
+[🇰🇷 한국어](../README.md) · [🇬🇧 English](README.en.md) · [🇯🇵 日本語](README.ja.md) · **🇨🇳 中文**
 
 > 在无法触碰服务器的环境中，**仅凭网络连接（5433）** 就能对 Vertica 的数据、结构、存储过程
 > 进行逻辑备份与恢复的工具。**为受限环境打造的 Vertica 版 `pg_dump`。**
@@ -116,7 +116,7 @@ tar xzf v_dump-deploy.tar.gz && cd v_dump-deploy
 ## 文档 · 语言
 
 - **[`GUIDE.md`](GUIDE.md)** —— Docker/隔离网运维指南（从头到尾）
-- 语言：[한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [中文](README.zh.md)
+- 语言：[한국어](../README.md) · [English](README.en.md) · [日本語](README.ja.md) · [中文](README.zh.md)
 
 ---
 

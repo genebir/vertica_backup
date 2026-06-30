@@ -76,9 +76,11 @@ Vertica 의 스키마·테이블·프로시저를 파일로 백업하고, `vsql`
 - Docker (또는 podman) — **그 외 파이썬/vsql 등은 아무것도 필요 없음**
 - 대상 Vertica 로의 네트워크 도달성 (예: `5433` 포트)
 
-### 자료
-- `v_dump/` 디렉토리 (소스 + `Dockerfile` + `docker/`)
-- `vertica-client-*.tar.gz` (vsql 클라이언트, `v_dump/` 안에 동봉)
+### 자료 (이 저장소 구성)
+- `v_dump/` — 파이썬 패키지(소스)
+- `docker/` — 실행 래퍼·엔트리포인트·빌드/패키징 스크립트
+- `assets/vertica-client-*.tar.gz` — vsql 클라이언트(이미지에 vsql 설치용, 동봉)
+- 루트의 `Dockerfile` · `requirements.txt`
 
 ---
 

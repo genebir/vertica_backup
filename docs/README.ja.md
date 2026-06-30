@@ -1,6 +1,6 @@
 # v_dump — Vertica 論理バックアップツール (client-side)
 
-[🇰🇷 한국어](README.md) · [🇬🇧 English](README.en.md) · **🇯🇵 日本語** · [🇨🇳 中文](README.zh.md)
+[🇰🇷 한국어](../README.md) · [🇬🇧 English](README.en.md) · **🇯🇵 日本語** · [🇨🇳 中文](README.zh.md)
 
 > サーバーに触れられない環境で、**ネットワーク接続(5433)だけで** Vertica のデータ・構造・プロシージャを
 > 論理的にバックアップ・復元するツール。**制約された環境のための Vertica 版 `pg_dump`。**
@@ -116,7 +116,7 @@ tar xzf v_dump-deploy.tar.gz && cd v_dump-deploy
 ## ドキュメント · 言語
 
 - **[`GUIDE.md`](GUIDE.md)** — Docker/閉域網 運用ガイド (最初〜最後)
-- 言語: [한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [中文](README.zh.md)
+- 言語: [한국어](../README.md) · [English](README.en.md) · [日本語](README.ja.md) · [中文](README.zh.md)
 
 ---
 

@@ -90,11 +90,11 @@ log "의존성 설치: $REQ"
 # ---------------------------------------------------------------------------
 # 4) 설정 파일 시드 (기존 것은 절대 덮어쓰지 않음)
 # ---------------------------------------------------------------------------
-if [[ -f "$HERE/v_dump.yaml" ]]; then
+if [[ -f "$HERE/v_dump/v_dump.yaml" ]]; then
   log "v_dump.yaml 이미 존재 → 보존 (덮어쓰지 않음)"
-elif [[ -f "$HERE/v_dump.yaml.example" ]]; then
-  cp "$HERE/v_dump.yaml.example" "$HERE/v_dump.yaml"
-  log "v_dump.yaml 생성됨 (example 복사) → 접속 정보를 채우세요: $HERE/v_dump.yaml"
+elif [[ -f "$HERE/v_dump/v_dump.yaml.example" ]]; then
+  cp "$HERE/v_dump/v_dump.yaml.example" "$HERE/v_dump/v_dump.yaml"
+  log "v_dump.yaml 생성됨 (example 복사) → 접속 정보를 채우세요: $HERE/v_dump/v_dump.yaml"
 else
   log "WARN: v_dump.yaml.example 없음 → 설정 파일 시드 건너뜀"
 fi
@@ -109,7 +109,7 @@ chmod +x "$HERE/run.sh" 2>/dev/null || true
 # ---------------------------------------------------------------------------
 log "import 검증"
 "$VENV_PY" -c "import vertica_python, yaml; print('  vertica_python', vertica_python.__version__, '| PyYAML', yaml.__version__)"
-env PYTHONPATH="$(dirname "$HERE")" "$VENV_PY" -m v_dump --help >/dev/null \
+env PYTHONPATH="$HERE" "$VENV_PY" -m v_dump --help >/dev/null \
   && log "CLI OK"
 
 cat <<EOF
@@ -117,7 +117,7 @@ cat <<EOF
 [install] 완료.
 
 다음 단계:
-  1) 접속 정보 입력:   $HERE/v_dump.yaml
+  1) 접속 정보 입력:   $HERE/v_dump/v_dump.yaml
   2) 실행:             $HERE/run.sh --schema <SCHEMA> -o ./backup
   (선택) 별칭 등록:    echo "alias v_dump=$HERE/run.sh" >> ~/.bashrc && source ~/.bashrc
 

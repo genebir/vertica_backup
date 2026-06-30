@@ -40,7 +40,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 # ---------------------------------------------------------------------------
 # 2) vsql 설치 (tar 안의 opt/vertica/ 를 / 로 풀면 /opt/vertica/bin/vsql)
 # ---------------------------------------------------------------------------
-COPY vertica-client-24.2.0-1.x86_64.tar.gz /tmp/vclient.tar.gz
+COPY assets/vertica-client-24.2.0-1.x86_64.tar.gz /tmp/vclient.tar.gz
 RUN tar xzf /tmp/vclient.tar.gz -C / opt/vertica/bin/vsql opt/vertica/lib64 \
  && rm -f /tmp/vclient.tar.gz
 ENV PATH="/opt/vertica/bin:${PATH}" \
@@ -55,10 +55,7 @@ RUN vsql --version
 # 위의 무거운 레이어(apt/pip/vsql)는 캐시 유지. → 소스 변경이 항상 반영되도록 보장.
 ARG CACHEBUST=0
 WORKDIR /app
-COPY __init__.py __main__.py cli.py config.py connection.py \
-     data.py ddl.py dumper.py escape.py inspector.py progress.py \
-     planner.py _worker.py \
-     /app/v_dump/
+COPY v_dump/ /app/v_dump/
 ENV PYTHONPATH=/app \
     PYTHONUNBUFFERED=1
 

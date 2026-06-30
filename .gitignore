@@ -1,6 +1,7 @@
 # ── 비밀 / 머신 종속 (절대 커밋 금지) ──
 # 실제 접속정보(평문 비밀번호). v_dump.yaml.example 만 커밋한다.
 v_dump.yaml
+v_dump/v_dump.yaml
 .venv/
 __pycache__/
 *.pyc

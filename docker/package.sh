@@ -41,11 +41,11 @@ OUT_TAR="$STAGE/v_dump-image.tar" "$HERE/build-image.sh" --save
 # 2) 실행 래퍼 + 접속정보 yaml 동봉
 # ---------------------------------------------------------------------------
 cp "$HERE/v_dump-docker.sh" "$STAGE/"
-if [[ -f "$ROOT/v_dump.yaml" ]]; then
-  cp "$ROOT/v_dump.yaml" "$STAGE/"
+if [[ -f "$ROOT/v_dump/v_dump.yaml" ]]; then
+  cp "$ROOT/v_dump/v_dump.yaml" "$STAGE/"
   log "v_dump.yaml 포함 (⚠ 평문 비밀번호 — 전송 경로 주의)"
 else
-  cp "$ROOT/v_dump.yaml.example" "$STAGE/v_dump.yaml"
+  cp "$ROOT/v_dump/v_dump.yaml.example" "$STAGE/v_dump.yaml"
   log "v_dump.yaml 없음 → example 복사 (반입 후 접속정보 채울 것)"
 fi
 

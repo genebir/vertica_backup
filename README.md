@@ -1,6 +1,6 @@
 # v_dump — Vertica 논리 백업 도구 (client-side)
 
-**🇰🇷 한국어** · [🇬🇧 English](README.en.md) · [🇯🇵 日本語](README.ja.md) · [🇨🇳 中文](README.zh.md)
+**🇰🇷 한국어** · [🇬🇧 English](docs/README.en.md) · [🇯🇵 日本語](docs/README.ja.md) · [🇨🇳 中文](docs/README.zh.md)
 
 > 서버를 만질 수 없는 환경에서, **네트워크 연결(5433)만으로** Vertica의 데이터·구조·프로시저를
 > 논리적으로 백업하고 복원하는 도구. **제약된 환경을 위한 Vertica용 `pg_dump`.**
@@ -95,7 +95,7 @@ tar xzf v_dump-deploy.tar.gz && cd v_dump-deploy
 ./v_dump-docker.sh restore YOUR_SCHEMA/all --with-ddl      # 복원
 ```
 
-> 설치·빌드·접속설정·백업/복원·운영 시나리오·트러블슈팅 **전체 흐름은 [`GUIDE.md`](GUIDE.md)** 를 본다.
+> 설치·빌드·접속설정·백업/복원·운영 시나리오·트러블슈팅 **전체 흐름은 [`GUIDE.md`](docs/GUIDE.md)** 를 본다.
 > 이 README 는 "무엇이고 왜 쓰는가", GUIDE 는 "어떻게 쓰는가".
 
 ---
@@ -115,8 +115,8 @@ tar xzf v_dump-deploy.tar.gz && cd v_dump-deploy
 
 ## 문서 · 언어
 
-- **[`GUIDE.md`](GUIDE.md)** — Docker/폐쇄망 운영 가이드 (처음~끝)
-- 언어: [한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [中文](README.zh.md)
+- **[`GUIDE.md`](docs/GUIDE.md)** — Docker/폐쇄망 운영 가이드 (처음~끝)
+- 언어: [한국어](README.md) · [English](docs/README.en.md) · [日本語](docs/README.ja.md) · [中文](docs/README.zh.md)
 
 ---
 

@@ -1,6 +1,6 @@
 # v_dump — Vertica logical backup tool (client-side)
 
-[🇰🇷 한국어](README.md) · **🇬🇧 English** · [🇯🇵 日本語](README.ja.md) · [🇨🇳 中文](README.zh.md)
+[🇰🇷 한국어](../README.md) · **🇬🇧 English** · [🇯🇵 日本語](README.ja.md) · [🇨🇳 中文](README.zh.md)
 
 > In environments where you can't touch the server, a tool that logically backs up and restores
 > Vertica's data, structure, and procedures **using nothing but a network connection (5433)**.
@@ -117,7 +117,7 @@ tar xzf v_dump-deploy.tar.gz && cd v_dump-deploy
 ## Docs · Languages
 
 - **[`GUIDE.md`](GUIDE.md)** — Docker/air-gapped operations guide (start to finish)
-- Languages: [한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [中文](README.zh.md)
+- Languages: [한국어](../README.md) · [English](README.en.md) · [日本語](README.ja.md) · [中文](README.zh.md)
 
 ---
 

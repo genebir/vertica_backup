@@ -6,14 +6,12 @@
 # ───────────────────────────────────────────────────────────────────────────
 ###############################################################################
 # v_dump 런처 (자체 venv 사용, 위치 독립적).
-# install.sh 로 만든 v_dump/.venv 를 쓰고, 패키지 import 를 위해
-# PYTHONPATH 에 v_dump 의 부모 디렉토리를 넣는다.
-# 어느 위치에서 호출해도 동작한다.
+# install.sh 로 만든 .venv 를 쓰고, 패키지 import 를 위해 PYTHONPATH 에
+# 리포 루트(= v_dump/ 패키지의 부모)를 넣는다. 어느 위치에서 호출해도 동작한다.
 ###############################################################################
 set -euo pipefail
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # .../v_dump
-PARENT="$(dirname "$HERE")"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # 리포 루트 (v_dump/ 의 부모)
 VENV_PY="$HERE/.venv/bin/python"
 
 if [[ ! -x "$VENV_PY" ]]; then
@@ -22,4 +20,4 @@ if [[ ! -x "$VENV_PY" ]]; then
   exit 1
 fi
 
-exec env PYTHONPATH="$PARENT" "$VENV_PY" -m v_dump "$@"
+exec env PYTHONPATH="$HERE" "$VENV_PY" -m v_dump "$@"
