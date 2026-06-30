@@ -1,9 +1,9 @@
-# v_dump — Vertica Logical Backup Tool (client-side)
+# v_dump — Vertica logical backup tool (client-side)
 
 [🇰🇷 한국어](README.md) · **🇬🇧 English** · [🇯🇵 日本語](README.ja.md) · [🇨🇳 中文](README.zh.md)
 
-> A tool to logically back up and restore Vertica's data, structure, and procedures
-> **using nothing but a network connection (5433)**, in environments where you can't touch the server.
+> In environments where you can't touch the server, a tool that logically backs up and restores
+> Vertica's data, structure, and procedures **using nothing but a network connection (5433)**.
 > **A `pg_dump` for Vertica, built for constrained environments.**
 
 Data is dumped to `COPY`-compatible `.dat` files (pipe-delimited), and structure is dumped as DDL. Restore is
@@ -58,7 +58,9 @@ v_dump is the tool for exactly that gap — it backs up **with nothing but a sin
 | **Selectivity** | Dump one table, several, or a whole schema, and restore just one |
 | **Transparency** | Open the `.dat` and inspect/verify the contents as-is |
 | **Air-gapped deployment** | One image + one bundle, zero installation on the target server (`docker`/`podman`) |
-| **Operational convenience** | Adaptive parallelism, progress bar, idempotent DDL, automatic procedure inclusion, lossless escaping |
+| **Speed** | Adaptive parallel dump/restore (automatic), row sharding for huge tables |
+| **Transfer efficiency** | `--compress` (gzip) — drastically cuts transfer/storage size, COPY reads it directly, lossless |
+| **Operational convenience** | Progress bar, idempotent DDL, automatic procedure inclusion, lossless escaping |
 
 ---
 
@@ -73,7 +75,9 @@ Restore:  vsql ──COPY ... FROM LOCAL──▶ Vertica
 - **`.dat`** — Vertica's default `COPY` convention (pipe-delimited, `\N` for NULL, backslash escaping) verbatim →
   the fastest reload. Newlines, tabs, and special characters round-trip **losslessly**.
 - **Adaptive parallelism** — decided automatically based on the workload: sequential for tiny ones, table-parallel when
-  there are many tables, row-level sharding for huge tables. Workers: `min(cores, 4)`.
+  there are many tables, row-level sharding for huge tables. Parallel on **both dump and restore**. Workers `min(cores, 4)` (tunable via `V_DUMP_JOBS`).
+- **Compression** (`--compress`) — gzips the `.dat`. Lightens the air-gap transfer load, and restore reads the compressed file
+  directly with `COPY ... GZIP`, **losslessly**.
 - **Idempotent DDL** — uses `CREATE ... IF NOT EXISTS` / `OR REPLACE`, so it's safe to re-run.
 
 ---

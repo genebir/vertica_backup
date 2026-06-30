@@ -275,6 +275,28 @@ procedures:
 
 > 산출 파일은 **호스트 사용자 소유**로 떨어진다(컨테이너 root 아님). 호스트에서 그냥 지우고 옮길 수 있다.
 
+### 5-7. 속도·용량 — 적응형 병렬 & 압축
+
+**적응형 병렬(자동).** 덤프는 워크로드를 보고 알아서 병렬화한다 — 자잘하면 순차,
+테이블이 많으면 테이블 단위 병렬, 거대 테이블은 행 단위로 샤딩해 병렬. 신경 쓸 게 없다.
+워커 수는 기본 `min(코어, 4)`. 조절은 환경변수:
+
+```bash
+V_DUMP_JOBS=8 ./v_dump-docker.sh dump --schema MY_SCHEMA   # 워커 8개
+V_DUMP_JOBS=1 ./v_dump-docker.sh dump --schema MY_SCHEMA   # 순차 강제
+```
+
+**압축(`--compress`).** `.dat` 를 gzip(`.dat.gz`)으로 저장한다. 에어갭 이관에서 **USB 로 옮길
+용량을 크게 줄여준다**(데이터에 따라 5~10×). 복원은 `load.sql` 에 `GZIP` 필터가 자동으로 박혀
+**Vertica COPY 가 압축 파일을 직접 읽으므로** 따로 풀 필요가 없고 **무손실**이다.
+
+```bash
+./v_dump-docker.sh dump --schema MY_SCHEMA --compress      # → MY_SCHEMA.<table>.dat.gz
+```
+
+> 이관 파이프라인(① 덤프 → ② 전송 → ③ 적재) 전 단계가 빨라진다:
+> ① 덤프 병렬 · ② `--compress` 로 전송 짐↓ · ③ 복원도 병렬(아래 6장).
+
 ---
 
 ## 6. 복원
@@ -285,6 +307,11 @@ procedures:
 구조가 없으면 `--with-ddl` 로 구조부터 만들고 적재한다.
 
 복원 경로는 **backup 기준 상대경로**(말단 폴더)로 적는다.
+
+> **복원도 병렬(자동).** 테이블이 여러 개면 COPY 를 세션 여럿으로 동시에 적재한다
+> (`V_DUMP_JOBS` 로 조절, `=1` 이면 순차). 압축 백업(`.dat.gz`)도 그대로 복원된다 — `load.sql`
+> 에 `GZIP` 필터가 있어 Vertica 가 알아서 푼다.
+> 단, 병렬은 **테이블 단위 커밋**(`=1` 순차는 단일 트랜잭션). 전량 원자성이 필요하면 `V_DUMP_JOBS=1`.
 
 ### 6-2. 전체/단일 폴더 복원 (데이터)
 
@@ -403,8 +430,10 @@ tar czf MY_SCHEMA2_$(date +%Y%m%d).tar.gz -C backup MY_SCHEMA2
 | `--schema-only` | DDL 만 |
 | `--data-only` | 데이터만 |
 | `--with-procedures` / `--no-procedures` | 프로시저 동반 추출 ON/OFF (기본 ON) |
+| `--compress` | `.dat` 를 gzip(`.dat.gz`)으로 → 전송/보관 용량↓ (복원 자동·무손실) |
 
 > `-o` 는 래퍼가 `/backup` 으로 자동 지정하므로 줄 필요 없다.
+> 병렬은 자동(워크로드 기반). `V_DUMP_JOBS` 로 조절(8-5).
 
 ### 8-3. restore 옵션
 
@@ -421,7 +450,10 @@ tar czf MY_SCHEMA2_$(date +%Y%m%d).tar.gz -C backup MY_SCHEMA2
 
 | 변수 | 기본 | 설명 |
 |---|---|---|
-| `BACKUP_DIR` | `$PWD/backup` | 백업 폴더 위치 강제 지정 |
+| `V_DUMP_JOBS` | `auto` | 병렬 워커 수. `auto`=min(코어,4), 정수=고정, `1`=순차. **덤프·복원 공통** |
+| `V_DUMP_PROGRESS` | `auto` | 진행률 바 강제 on(`1`)/off(`0`). 기본은 터미널일 때만 |
+| `ENGINE` | (자동) | 컨테이너 엔진 강제(`docker`\|`podman`). 미지정 시 이미지 가진 엔진 자동 |
+| `BACKUP_DIR` | 스크립트 옆 `backup` | 백업 폴더 위치 강제 지정 |
 | `IMAGE` | `v_dump:latest` | 사용할 이미지 태그 |
 | `V_DUMP_YAML` | (자동탐색) | yaml 경로 강제 지정 |
 
