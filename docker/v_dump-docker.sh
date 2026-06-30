@@ -39,7 +39,7 @@ BACKUP_DIR="${BACKUP_DIR:-$HERE/backup}"
 # (한 번 채워두면 매번 env/경로를 안 넘겨도 됨. env VERTICA_* 가 있으면 그게 우선.)
 V_DUMP_YAML="${V_DUMP_YAML:-}"
 if [[ -z "$V_DUMP_YAML" ]]; then
-  for cand in "$PWD/v_dump.yaml" "$BACKUP_DIR/v_dump.yaml" "$HERE/../v_dump.yaml"; do
+  for cand in "$PWD/v_dump.yaml" "$HERE/v_dump.yaml" "$BACKUP_DIR/v_dump.yaml" "$HERE/../v_dump.yaml"; do
     if [[ -f "$cand" ]]; then V_DUMP_YAML="$cand"; break; fi
   done
 fi

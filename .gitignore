@@ -12,4 +12,6 @@ docker/backup/
 # ── 빌드 산출물 ──
 v_dump-image.tar
 v_dump-bundle.tar.gz
+v_dump-deploy.tar.gz
+v_dump-deploy/
 *.image.tar
