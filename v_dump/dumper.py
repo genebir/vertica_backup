@@ -24,7 +24,7 @@ from typing import List, Optional
 from v_dump.config import ConnectionConfig
 from v_dump.connection import vertica_connection
 from v_dump.data import build_copy_statement, dat_name, dump_table_data, open_dat_writer
-from v_dump.ddl import export_objects_ddl, make_idempotent
+from v_dump.ddl import export_objects_ddl, make_idempotent, rehome_projections
 from v_dump.inspector import (
     TableRef,
     count_rows,
@@ -36,7 +36,7 @@ from v_dump.inspector import (
     table_exists,
 )
 from v_dump.planner import plan, resolve_workers
-from v_dump.progress import Progress, progress_enabled
+from v_dump.progress import MultiProgress, Progress, progress_enabled
 
 
 @dataclass
@@ -47,6 +47,7 @@ class DumpOptions:
     data_only: bool = False          # 데이터만 (DDL/load.sql 생성 안 함)
     include_procedures: bool = True  # 테이블 단위 백업 시, 이름에 테이블명이 포함된 프로시저 DDL 도 추출
     compress: bool = False           # .dat 을 gzip(.dat.gz)으로 — 전송/보관 용량↓ (COPY GZIP)
+    portable_ddl: bool = False       # 프로젝션/KSAFE 제거 — 노드 수 다른 클러스터로 이식(3586 회피)
 
 
 class VerticaDumper:
@@ -113,7 +114,7 @@ class VerticaDumper:
             parallel, units = plan(targets, est, workers)
             if parallel:
                 self._dump_parallel(opts, outdir, targets, columns_map, units,
-                                    workers, stats, copy_statements)
+                                    workers, stats, copy_statements, est)
             else:
                 self._dump_sequential(conn, opts, outdir, targets, columns_map,
                                      stats, copy_statements)
@@ -148,6 +149,16 @@ class VerticaDumper:
                     n, _ = dump_table_data(conn, t.schema, t.name, fh,
                                            on_progress=prog.update, columns=cols)
                 prog.done(n)
+            except KeyboardInterrupt:
+                # 중단 → 쓰다 만 현재 테이블 .dat 정리 후 전파.
+                prog.abort()
+                try:
+                    os.remove(dat_path)
+                except OSError:
+                    pass
+                print(f"[v_dump] 중단: {t.schema}.{t.name} 부분 파일 정리 완료",
+                      file=sys.stderr)
+                raise
             except Exception as e:
                 prog.abort()
                 try:
@@ -165,7 +176,7 @@ class VerticaDumper:
                     build_copy_statement(t.schema, t.name, cols, dname, compress=opts.compress))
 
     def _dump_parallel(self, opts, outdir, targets, columns_map, units,
-                       workers, stats, copy_statements):
+                       workers, stats, copy_statements, est=None):
         """멀티프로세스 병렬 덤프. 거대 테이블은 샤드 파일로 받아 합친다."""
         import multiprocessing as mp
         from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -196,37 +207,57 @@ class VerticaDumper:
         prog_on = progress_enabled()
         total_units = len(jobs)
         n_shards = sum(1 for u in units if u['shard_index'] is not None)
+        # 추정 총 행수: 있으면 게이지를 행 기준으로(부드러움), 없으면 unit 개수 기준.
+        est = est or {}
+        total_rows_est = sum(int(est.get(t.name, 0) or 0) for t in targets)
         print(f"[v_dump] 병렬 덤프: workers={workers}, units={total_units} "
               f"(테이블 {len(targets)}개, 샤드 {n_shards}개)", file=sys.stderr)
 
+        prog = MultiProgress(total_units, total_rows_est, prog_on)
         rows_by_table = {}
         err_by_table = {}
         parts_by_table = {}   # table -> [(shard_index, path), ...]
         done = 0
-        with ProcessPoolExecutor(max_workers=workers, mp_context=mp_ctx) as ex:
-            futs = {ex.submit(dump_unit, j): j for j in jobs}
-            for fut in as_completed(futs):
-                j = futs[fut]
-                res = fut.result()
-                done += 1
-                t = res['table']
-                if res['error']:
-                    err_by_table[t] = res['error']
-                else:
-                    rows_by_table[t] = rows_by_table.get(t, 0) + res['rows']
-                if j['shard_index'] is not None:
-                    parts_by_table.setdefault(t, []).append((j['shard_index'], j['outpath']))
+        rows_done = 0
+        completed = False
+        try:
+            with ProcessPoolExecutor(max_workers=workers, mp_context=mp_ctx) as ex:
+                futs = {ex.submit(dump_unit, j): j for j in jobs}
+                try:
+                    for fut in as_completed(futs):
+                        j = futs[fut]
+                        res = fut.result()
+                        done += 1
+                        t = res['table']
+                        si = j['shard_index']
+                        label = f"{t}{('#'+str(si)) if si is not None else ''}"
+                        if res['error']:
+                            err_by_table[t] = res['error']
+                        else:
+                            rows_by_table[t] = rows_by_table.get(t, 0) + res['rows']
+                            rows_done += res['rows']
+                        if si is not None:
+                            parts_by_table.setdefault(t, []).append((si, j['outpath']))
+                        if prog_on:
+                            prog.update(done, rows_done, current=label)
+                        else:
+                            print(f"[v_dump]   [{done}/{total_units}] {opts.schema}.{label}"
+                                  f"  rows={res['rows']:,}", file=sys.stderr)
+                except KeyboardInterrupt:
+                    # 대기 중 unit 은 취소, 실행 중은 기다리지 않음(자식은 SIGINT 로 종료).
+                    ex.shutdown(wait=False, cancel_futures=True)
+                    raise
+            completed = True
+        finally:
+            if completed:
+                prog.done(rows_done)
+            else:
+                # 정상 조립 전에 빠져나감 → 워커가 남긴 조각/부분 파일을 전부 정리.
                 if prog_on:
-                    sys.stderr.write(f"\r  병렬 진행  [{done}/{total_units} units]  "
-                                     f"{sum(rows_by_table.values()):,} rows")
+                    sys.stderr.write('\n')
                     sys.stderr.flush()
-                else:
-                    print(f"[v_dump]   [{done}/{total_units}] {opts.schema}.{t}"
-                          f"{('#'+str(j['shard_index'])) if j['shard_index'] is not None else ''}"
-                          f"  rows={res['rows']:,}", file=sys.stderr)
-        if prog_on:
-            sys.stderr.write('\n')
-            sys.stderr.flush()
+                removed = self._cleanup_units(jobs)
+                print(f"[v_dump] 중단: 병렬 부분 파일 {removed}개 정리 완료", file=sys.stderr)
 
         # 입력 순서대로 stats 구성 + 샤드 재조립
         for t in targets:
@@ -264,6 +295,21 @@ class VerticaDumper:
                 copy_statements.append(
                     build_copy_statement(opts.schema, name, cols, dname, compress=opts.compress))
 
+    @staticmethod
+    def _cleanup_units(jobs: List[dict]) -> int:
+        """중단 시, 병렬 워커가 기록 중/기록한 산출 파일을 모두 제거.
+        각 job['outpath'] 는 통테이블(.dat) 또는 샤드 조각(.dat.partN) 이다.
+        아직 최종 .dat 로 조립하기 전이므로 이것만 지우면 잔여물이 남지 않는다.
+        """
+        removed = 0
+        for j in jobs:
+            try:
+                os.remove(j['outpath'])
+                removed += 1
+            except OSError:
+                pass   # 아직 시작 안 한 unit 은 파일이 없다.
+        return removed
+
     # ---------- internals ----------
 
     def _resolve_targets(self, conn, opts: DumpOptions) -> List[TableRef]:
@@ -292,8 +338,17 @@ class VerticaDumper:
             scope = ','.join(f'{opts.schema}.{t}' for t in opts.tables)
         else:
             scope = opts.schema
+        ddl = export_objects_ddl(conn, scope)
+        # 이식용: 프로젝션은 유지하되 노드 수에 묶인 OFFSET/KSAFE 만 떼어 재배치 가능하게.
+        if opts.portable_ddl:
+            ddl, pinned = rehome_projections(ddl)
+            if pinned:
+                print(f"[v_dump] WARN --portable-ddl: 특정 노드에 핀된 프로젝션이 있어 "
+                      f"자동 재배치가 안 됩니다({', '.join(pinned)}). "
+                      f"복원 후 해당 프로젝션을 ALL NODES 로 수동 재생성하세요.",
+                      file=sys.stderr)
         # 재실행해도 깨지지 않게 멱등 형태(IF NOT EXISTS / OR REPLACE)로 변환.
-        ddl = make_idempotent(export_objects_ddl(conn, scope))
+        ddl = make_idempotent(ddl)
 
         # 프로시저는 "테이블 단위" 백업에서만 따로 챙긴다.
         # (스키마 전체 덤프는 위 scope=schema 가 프로시저까지 이미 포함한다.)

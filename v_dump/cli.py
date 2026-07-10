@@ -62,6 +62,15 @@ def _build_parser() -> argparse.ArgumentParser:
              '복원은 load.sql 의 GZIP 필터로 자동(무손실).',
     )
 
+    port = p.add_argument_group('portability')
+    port.add_argument(
+        '--portable-ddl', action='store_true',
+        help='프로젝션을 노드 수에 독립적으로 재작성(정렬순서·인코딩 설계는 유지). '
+             'SEGMENTED BY ... ALL NODES 의 OFFSET 과 MARK_DESIGN_KSAFE 만 제거 → '
+             '노드 수가 다른 클러스터로 복원해도(예: 1노드→3노드) 대상이 버디를 '
+             '자동 배치하므로 3586 에러가 안 난다.',
+    )
+
     out = p.add_argument_group('output')
     out.add_argument(
         '--output', '-o',
@@ -130,6 +139,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     schema=args.schema, tables=[t],
                     schema_only=args.schema_only, data_only=args.data_only,
                     include_procedures=include_proc, compress=args.compress,
+                    portable_ddl=args.portable_ddl,
                 ),
             ))
     else:
@@ -141,12 +151,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 schema=args.schema, tables=None,
                 schema_only=args.schema_only, data_only=args.data_only,
                 include_procedures=include_proc, compress=args.compress,
+                portable_ddl=args.portable_ddl,
             ),
         ))
 
     dumper = VerticaDumper(cfg)
     try:
         results = dumper.dump_jobs(jobs)   # 커넥션 1개로 전체 작업 처리
+    except KeyboardInterrupt:
+        print("\n[v_dump] 사용자 중단(Ctrl-C). 부분 파일은 정리했습니다.", file=sys.stderr)
+        return 130
     except Exception as e:
         print(f"[v_dump] connection failed: {e}", file=sys.stderr)
         return 1
